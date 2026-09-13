@@ -26,7 +26,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
       this.meanSquare = levelCoefficient * this.meanSquare + (1 - levelCoefficient) * power;
 
       const levelDb = 10 * Math.log10(Math.max(this.meanSquare, 1e-10));
-      const boostDb = Math.min(2, Math.max(0, -15 - levelDb));
+      const boostDb = Math.min(5, Math.max(0, -12 - levelDb));
       const reductionDb = Math.min(4, Math.max(0, levelDb + 17));
       const targetGain = 10 ** ((boostDb - reductionDb) / 20);
       const gainCoefficient = targetGain < this.gain ? this.gainAttack : this.gainRelease;
