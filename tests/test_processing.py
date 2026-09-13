@@ -58,3 +58,23 @@ def test_night_keeps_quiet_passage_close_to_balanced_and_reduces_loud_passage():
     loud_difference = level(night[10000:14000]) - level(balanced[10000:14000])
     assert quiet_difference > -2
     assert loud_difference < -2
+
+
+def test_balanced_preserves_normal_dialogue_level_at_fixed_playback_volume():
+    rate = 8000
+    time = np.arange(rate * 2) / rate
+    dialogue = (0.1414 * np.sin(2 * np.pi * 440 * time)).astype(np.float32)
+    output = process_audio(dialogue, rate, "balanced")
+    change_db = 20 * np.log10(np.sqrt(np.mean(output.astype(float) ** 2)) /
+                              np.sqrt(np.mean(dialogue.astype(float) ** 2)))
+    assert -1 <= change_db <= 1
+
+
+def test_balanced_still_reduces_loud_action_by_at_least_five_db():
+    rate = 8000
+    time = np.arange(rate * 2) / rate
+    action = (0.5 * np.sin(2 * np.pi * 440 * time)).astype(np.float32)
+    output = process_audio(action, rate, "balanced")
+    change_db = 20 * np.log10(np.sqrt(np.mean(output.astype(float) ** 2)) /
+                              np.sqrt(np.mean(action.astype(float) ** 2)))
+    assert change_db <= -5

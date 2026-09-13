@@ -46,6 +46,8 @@ The source MOV at `audio/ToS-4k-1920.mov/ToS-4k-1920.mov` is kept outside Git. A
 The full soundtrack has also been extracted to `audio/tos_full_original.wav` and processed in Balanced mode as `audio/tos_full_balanced.wav`. These local WAV files are ignored by Git.
 The full MOV was processed directly as `audio/ToS-4k-1920_balanced.mov`; its video stream was verified byte-for-byte against the source stream.
 
+After full-film listening showed the original Balanced curve lowered dialogue too far, `audio/tos_full_balanced_v2.wav` and `audio/ToS-4k-1920_balanced_v2.mov` were rendered with a revised Balanced curve. The old files remain for comparison. On 260 model-identified likely-speech windows, the median level change versus the original WAV is +0.93 dB in v2, compared with -4.65 dB in the old Balanced WAV. These are measured levels, not a substitute for listening. The v2 MOV retains the original duration and video stream.
+
 Compare the original, Balanced, and either Night version at the **same player volume**. Listen for clear dialogue, the impact of louder events, pumping, and audible distortion. To recreate the excerpt with FFmpeg installed:
 
 ```powershell
@@ -56,7 +58,7 @@ adaptive-audio audio/tos_excerpt_original.wav --mode night --output audio/tos_ex
 
 ## Modes
 
-Cinema makes small changes, Balanced gives quieter passages a gentle lift and reduces loud passages, and Night applies the strongest change. Mode values are provisional and should be tuned against real listening samples. Without `--ai` or `--labels`, a quiet sound effect can be raised just like quiet dialogue.
+Cinema makes small changes, Balanced now keeps roughly -20 dBFS passages close to their original level while reducing loud passages, and Night applies the strongest change. Mode values are provisional and should be tuned against real listening samples. Without `--ai` or `--labels`, a quiet sound effect can be raised just like quiet dialogue.
 
 ## Evaluation
 
