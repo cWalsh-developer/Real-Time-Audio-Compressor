@@ -1,113 +1,122 @@
-# Adaptive Audio MVP
+# Adaptive Audio
 
-A runnable offline processor for reducing uncomfortable loudness changes while retaining some quiet/loud contrast. It accepts **MOV, MP4, or uncompressed 16-bit PCM WAV** files in Cinema, Balanced, or Night mode. By default it uses short-window RMS levels and deterministic gain planning. An optional pretrained classifier can inform the gain plan. It does not yet measure LUFS.
+**Watch films and TV without constantly reaching for the volume control.**
 
-## Set up
+Adaptive Audio is an experimental project for reducing loud music and sound effects while keeping dialogue at its original, comfortable level. The first target is a **Chrome extension** that processes a streaming tab's audio locally, in real time, while you watch.
 
-Python 3.10+ is required. From this folder:
+The intended experience is simple: ordinary speech sounds the same when processing is enabled, but a loud theme tune, gunfire, an explosion, or a revving engine becomes less intrusive. Adjustments should be smooth, without audible volume pumping or loss of lip-sync.
+
+**Current status:** a working Chrome prototype reduces loud passages using audio levels. AI source separation is being evaluated separately and is **not yet part of the live extension**. Preserving dialogue during overlapping music and effects remains the main unresolved challenge.
+
+## What the project is aiming for
+
+| Situation | Intended behaviour |
+| --- | --- |
+| Normal dialogue, deeper voices, or a moderately raised voice | Preserve the original level without dipping midway through a sentence. |
+| Ordinary background music and everyday sounds | Leave comfortable audio unchanged. |
+| Sustained loud music, theme tunes, or engines | Reduce the loud section consistently, without rising and falling between beats. |
+| Sudden gunfire, impacts, or explosions | Reduce sharp peaks smoothly, without keeping the following dialogue quiet. |
+| Dialogue overlapping loud music or effects | Preserve the speech while reducing the loud background. |
+
+These are acceptance targets, not guarantees of the current prototype. The detailed listening criteria are in [the real-time audio target](docs/realtime-audio-target.md).
+
+## What works today
+
+| Component | Available now | Current limit |
+| --- | --- | --- |
+| **Chrome extension** | Captures tab audio, reduces loud passages, and supports instant comparison with original audio. | Uses levels rather than sound recognition. Loud speech can still be reduced, including during overlapping effects. |
+| **Offline Python processor** | Processes WAV, MOV, and MP4 files with Cinema, Balanced, and Night modes. | Processes the whole mix; these modes are separate from the live extension's settings. |
+| **Optional audio classifier** | Uses YAMNet to estimate speech, music, action, and other content for offline gain decisions. | Classifies sounds; it does not extract separate dialogue and effects tracks. |
+| **Rolling Python prototype** | Processes successive audio blocks with configurable look-ahead. | Its default two-second buffer delays audio; it is not the Chrome playback engine. |
+| **Source separation trials** | Compare estimated dialogue/background separation, audio quality, and processing speed. | No model has yet passed all quality, browser performance, and playback requirements. |
+
+Local listening has confirmed playback on Netflix with acceptable sync in the tested setup. This is not a guarantee of compatibility with every title, streaming service, or device. A smart TV version is a longer-term possibility; there is no TV app in this repository.
+
+## Try the Chrome extension
+
+The current prototype requires **Chrome 116 or newer**. It needs no Python environment, model download, API key, or backend service. Captured audio is processed locally; the extension does not record or upload it.
+
+1. Open `chrome://extensions` and enable **Developer mode**.
+2. Choose **Load unpacked** and select this repository's `chrome-extension` folder.
+3. Play a video, then click the extension icon to start processing. The badge shows `CMP`.
+4. Press **Alt+Shift+P** to switch between processed audio (`CMP`) and original audio (`AUD`). Compare at the same player and speaker volume.
+5. Click the icon again, or press **Alt+Shift+A**, to stop capture. The same shortcut starts capture again.
+
+**Netflix fullscreen:** enter the player's fullscreen mode **before** starting capture, then use **Alt+Shift+A**. Chrome may prevent entering player fullscreen after capture starts. Configure shortcuts at `chrome://extensions/shortcuts` if needed.
+
+See the [extension guide](chrome-extension/README.md) for badge meanings, troubleshooting, and browser verification instructions.
+
+## Why source separation is the next step
+
+A volume detector sees the level of the entire soundtrack. It cannot reliably distinguish a loud voice from loud music. If dialogue and an explosion overlap, turning down the mixed signal turns down both. Adding a classifier can help decide *when* to act, but does not solve that overlap problem.
+
+The intended default is therefore to **estimate dialogue and music/effects separately**, then reduce only the loud non-dialogue content. The browser receives a mixed soundtrack, so these would be estimated sources, not access to the studio's original production tracks.
+
+The planned processing path is:
+
+```text
+Captured tab audio
+    → Low-latency dialogue / background separation
+    → Smooth reduction of loud background events, with dialogue held at its original level
+    → Recombine and play in sync with the video
+```
+
+Separation quality matters as much as speed: speech leaking into the estimated background can still become quieter when that background is reduced. A larger buffer alone cannot fix this and can make audio late relative to video. The target design should reproduce the original mix when no reduction is needed and fall back to original audio if separation fails or cannot keep up.
+
+### What the model trials have shown
+
+| Candidate | Finding from the recorded local trials |
+| --- | --- |
+| **BandIt v2** | Useful offline quality reference, but the tested processing time and chunking are unsuitable for live extension playback. |
+| **DeepFilterNet3** | Fast in an isolated browser test, but the tested remix reduced dialogue during overlapping music. |
+| **GTCRN** | Fast in a native streaming test, but also reduced dialogue during overlapping music. |
+| **Rapidly SDK** | The native demo showed promising throughput. Unwatermarked quality, stereo preservation, and browser SDK integration still need evaluation. |
+
+No licensed model has been selected, and the current extension does not depend on one. Native processing speed alone does not prove that a model is suitable for Chrome.
+
+See the [offline separation findings](evaluation/separation-findings.md), [browser model findings](evaluation/dfn-browser-findings.md), [streaming model findings](evaluation/causal-separator-findings.md), and [licensed SDK trial](evaluation/rapidly-trial.md) for measurements and reproduction details.
+
+## Run the offline tools
+
+For development and file comparisons, install **Python 3.10+** and run these commands from the repository root:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .
-```
 
-Run it:
-
-```powershell
-adaptive-audio input.wav --mode balanced
-adaptive-audio input.wav --mode night --output output.wav
+adaptive-audio input.wav --mode balanced --output output.wav
 adaptive-audio input.mov --mode balanced --output output.mov
-adaptive-audio input.mp4 --mode balanced --output output.mp4
-adaptive-audio input.mov --mode balanced --ai --output output_ai.mov
+adaptive-audio input.mp4 --mode night --output output.mp4
 ```
 
-The default output adds `_balanced` before the input extension. The original is never overwritten. MOV and MP4 processing use a bundled FFmpeg binary: it extracts the **first audio track** to stereo PCM, processes it, then copies the original video stream and encodes the new audio as AAC. It copies subtitle streams when present. Other audio tracks are not included in the output.
+WAV input must be uncompressed 16-bit PCM. Video processing uses bundled FFmpeg to process the first audio track as stereo, copy the video, and encode the replacement audio as AAC. Always specify a MOV or MP4 output filename when processing video.
 
-To extract audio manually with a separate FFmpeg installation:
+The [offline workflow guide](docs/offline-workflow.md) covers modes, optional classification, rolling processing, measurement reports, and the earlier *Tears of Steel* listening trials. Source media, generated previews, and downloaded models are kept outside Git; they are not included in a fresh checkout.
 
-```powershell
-ffmpeg -i movie.mkv -map 0:a:0 -ac 2 -ar 48000 -c:a pcm_s16le movie.wav
-adaptive-audio movie.wav --mode balanced
-```
+## Next development stages
 
-The processor uses the same gain for all channels, smooths the gain curve with offline look-ahead, and limits peaks locally to a -1 dBFS sample-peak ceiling. The ceiling is **sample peak**, not true peak; check the output with a suitable meter before using it for critical listening.
+Keep each stage independently reviewable and committable:
 
-WAV processing uses two passes: one scans 100 ms frame levels and peaks, then the other writes samples in chunks. Memory use is bounded by the chunk size plus the compact frame-level gain plan, so a full soundtrack does not need to be loaded at once.
+1. **Qualify a separator.** Compare ordinary and overlapping speech, sustained music, and sharp effects against original audio at a fixed listening volume. Reject candidates with audible dialogue loss or separation artifacts.
+2. **Prove browser performance.** Verify stereo preservation, sustained processing speed, total playback delay, and lip-sync on representative hardware before integrating a model as the default.
+3. **Integrate background reduction.** Apply stable gain changes to estimated music/effects, handle scene transitions, and recover to original playback when processing cannot keep up.
+4. **Validate real viewing.** Recheck dialogue, pumping, effects, fullscreen, and sync across longer sessions and different streaming content.
+5. **Simplify installation.** Package a local processing path that avoids manual model or service setup wherever possible.
 
-## Rolling look-ahead prototype
+## Repository guide
 
-`RollingProcessor` in `adaptive_audio.rolling` accepts one 100 ms mono or multichannel PCM block at a time. It holds a configurable future buffer (2 seconds by default) plus five prior frame measurements, then emits each processed block. It does not need the whole audio file or an end-of-file signal before starting. Call `flush()` once when the stream ends to emit the final buffered blocks. The caller controls real-time input and playback pacing.
+- [`chrome-extension/`](chrome-extension/) — live tab capture and the current level-based audio processor.
+- [`src/adaptive_audio/`](src/adaptive_audio/) — offline processing, classification, rolling processing, and stem remix utilities.
+- [`evaluation/`](evaluation/) — scene definitions, model trial runners, and recorded findings.
+- [`docs/`](docs/) — listening targets and detailed offline instructions.
+- [`tests/`](tests/) — Python automated checks.
 
-The WAV driver simulates a continuous input stream and reports processing speed:
-
-```powershell
-adaptive-audio-rolling audio/tos_full_original.wav --mode balanced --lookahead 2 --output audio/tos_full_balanced_rolling.wav
-```
-
-The 2-second setting delays output by 2 seconds of audio while allowing the existing gain smoothing to see approaching loud events. On this machine, the 734.12-second *Tears of Steel* soundtrack processed in 1.66 seconds (443× audio duration), and the resulting WAV matched the offline Balanced v3 WAV byte-for-byte. That speed measures the file-driven audio computation, **not** sound-device capture, playback, or video synchronization. Those I/O and timing pieces are the next stage; this prototype currently produces audio only and uses the deterministic level-based mode without streaming classifier inference.
-
-## Tears of Steel test clip
-
-The source MOV at `audio/ToS-4k-1920.mov/ToS-4k-1920.mov` is kept outside Git. A 60-second excerpt from 06:30–07:30 has been extracted and processed locally:
-
-- `audio/tos_excerpt_original.wav`
-- `audio/tos_excerpt_balanced.wav`
-- `audio/tos_excerpt_night.wav`
-- `audio/tos_excerpt_night_v2.wav` (revised Night settings with less dialogue reduction)
-
-The full soundtrack has also been extracted to `audio/tos_full_original.wav` and processed in Balanced mode as `audio/tos_full_balanced.wav`. These local WAV files are ignored by Git.
-The full MOV was processed directly as `audio/ToS-4k-1920_balanced.mov`; its video stream was verified byte-for-byte against the source stream.
-
-After full-film listening showed the original Balanced curve lowered dialogue too far, `audio/tos_full_balanced_v2.wav` and `audio/ToS-4k-1920_balanced_v2.mov` were rendered with a revised Balanced curve. The old files remain for comparison. On 260 model-identified likely-speech windows, the median level change versus the original WAV is +0.93 dB in v2, compared with -4.65 dB in the old Balanced WAV. These are measured levels, not a substitute for listening. The v2 MOV retains the original duration and video stream.
-
-`audio/tos_full_balanced_v3.wav` and `audio/ToS-4k-1920_balanced_v3.mov` add a small amount of reduction only toward the loud end of the Balanced curve. Across the full-film 100 ms measurements, input windows around -20 dBFS remain about unchanged, while windows at -10 dBFS or louder receive a median 7.48 dB reduction versus 5.98 dB in v2. The v3 MOV retains the original duration and video stream.
-
-Compare the original, Balanced, and either Night version at the **same player volume**. Listen for clear dialogue, the impact of louder events, pumping, and audible distortion. To recreate the excerpt with FFmpeg installed:
-
-```powershell
-ffmpeg -ss 00:06:30 -i "audio/ToS-4k-1920.mov/ToS-4k-1920.mov" -t 60 -map 0:a:0 -ac 2 -ar 44100 -c:a pcm_s16le audio/tos_excerpt_original.wav
-adaptive-audio audio/tos_excerpt_original.wav --mode balanced --output audio/tos_excerpt_balanced.wav
-adaptive-audio audio/tos_excerpt_original.wav --mode night --output audio/tos_excerpt_night_v2.wav
-```
-
-## Modes
-
-Cinema makes small changes, Balanced now keeps roughly -20 dBFS passages close to their original level while reducing loud passages, and Night applies the strongest change. Mode values are provisional and should be tuned against real listening samples. Without `--ai` or `--labels`, a quiet sound effect can be raised just like quiet dialogue.
-
-## Evaluation
-
-The reproducible Tears of Steel windows are listed in `evaluation/scenes.json`. The first set samples the opening, middle, and closing minute; they are time selections, not verified content labels. Keep the source and generated WAV files in `audio/`, which Git ignores.
-
-Additional windows from the newly added MP4 and MOV files, with measurements and listening targets, are in `evaluation/additional_scenes.json` and `evaluation/additional_scenes.md`. Full Balanced v3 MP4 outputs are available locally as `audio/bbb_sunflower_balanced_v3.mp4` and `audio/service_balanced_v3.mp4`.
-
-Compare two aligned WAV files with:
-
-```powershell
-adaptive-audio-report audio/tos_excerpt_original.wav audio/tos_excerpt_balanced.wav
-adaptive-audio-report audio/tos_excerpt_original.wav audio/tos_excerpt_night_v2.wav --json
-```
-
-The report gives duration, sample peak, and the 10th, 50th, and 90th percentiles of 100 ms RMS levels. Its level range is P90 minus P10. These are repeatable **dBFS** measurements, not LUFS or standardized loudness range. They cannot measure dialogue intelligibility, pumping, or listening comfort; use the same player volume for those comparisons and record observations alongside the numbers.
-
-## Optional semantic classifier
-
-The classifier boundary is defined in `adaptive_audio.classification`: it returns time-stamped scores for `speech`, `music`, `action`, and `other`. `ManualClassifier` reads known labels from JSON; `evaluation/example_labels.json` shows the format. An optional [YAMNet ONNX model](https://huggingface.co/audiomagic/yamnet-onnx) adapter can generate scores from WAV audio:
-
-```powershell
-python -m pip install -e ".[ai]"
-adaptive-audio-classify audio/tos_excerpt_original.wav --output audio/tos_excerpt.labels.json
-```
-
-The first run downloads pinned model files (about 16 MB) to `models/yamnet/` and verifies their SHA-256 hashes. Model files and generated labels are kept out of Git. The adapter uses FFmpeg to downmix and resample to the 16 kHz mono input expected by [Google's YAMNet](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet). It groups selected AudioSet classes into the four project categories; these normalized category scores are **heuristic, not calibrated probabilities**. Model windows overlap.
-
-Use `--ai` on WAV or MOV input to classify and process in one command, or pass existing scores with `--labels path/to/labels.json`. Without either option, the established level-only processing stays the same. The content-aware decision adds up to 3 dB of speech protection and 2 dB of action reduction before gain smoothing and peak limiting. Music currently receives the baseline treatment. The model-informed output is experimental and should be compared by ear at the same volume against the established Balanced and Night outputs.
-
-For Tears of Steel, `audio/ToS-4k-1920_balanced_ai.mov` is a local full-film AI-assisted comparison. Its duration and copied video stream were verified against the source.
-
-## Tests
+To run the Python checks after installing the project:
 
 ```powershell
 python -m pip install pytest
 python -m pytest -q
 ```
+
+Automated checks help verify processing behaviour. Listening comparisons and browser playback checks are still required to establish dialogue preservation and a seamless viewing experience.
