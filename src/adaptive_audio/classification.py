@@ -33,6 +33,12 @@ class AudioClassifier(Protocol):
     def classify(self, audio: np.ndarray, sample_rate: int) -> list[EventScores]: ...
 
 
+def read_scores(path: Path) -> list[EventScores]:
+    """Read score windows; model windows may overlap."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return [EventScores(**item) for item in data["segments"]]
+
+
 class ManualClassifier:
     """A deterministic timeline for validating downstream decisions."""
 
@@ -44,8 +50,7 @@ class ManualClassifier:
 
     @classmethod
     def from_json(cls, path: Path) -> "ManualClassifier":
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return cls([EventScores(**item) for item in data["segments"]])
+        return cls(read_scores(path))
 
     def classify_duration(self, duration_seconds: float, window_seconds: float = 1.0) -> list[EventScores]:
         if duration_seconds < 0 or window_seconds <= 0:

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from adaptive_audio.classification import EventScores, ManualClassifier
+from adaptive_audio.classification import EventScores, ManualClassifier, read_scores
 
 
 def test_manual_classifier_returns_scores_for_each_time_window(tmp_path):
@@ -31,3 +31,12 @@ def test_overlapping_manual_segments_are_rejected(tmp_path):
     ]}))
     with pytest.raises(ValueError, match="overlap"):
         ManualClassifier.from_json(labels)
+
+
+def test_read_scores_accepts_overlapping_model_windows(tmp_path):
+    labels = tmp_path / "model.json"
+    labels.write_text(json.dumps({"segments": [
+        {"start_seconds": 0, "end_seconds": 0.96, "scores": {"speech": 1, "music": 0, "action": 0, "other": 0}},
+        {"start_seconds": 0.48, "end_seconds": 1.44, "scores": {"speech": 0, "music": 1, "action": 0, "other": 0}},
+    ]}))
+    assert len(read_scores(labels)) == 2

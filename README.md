@@ -72,7 +72,14 @@ The report gives duration, sample peak, and the 10th, 50th, and 90th percentiles
 
 ## Next stage: semantic classifier
 
-The classifier boundary is defined in `adaptive_audio.classification`: it returns time-stamped probabilities for `speech`, `music`, `action`, and `other`. `ManualClassifier` reads known labels from JSON; `evaluation/example_labels.json` shows the format. No pretrained model or content-aware gain adjustment is enabled yet. The next stage is a model adapter, followed by a decision engine that uses scores and measured levels. Compare that output with this baseline on the same scenes; prioritize fewer remote-control volume changes, dialogue clarity, preserved dynamics, and absence of pumping or clipping over classification accuracy alone.
+The classifier boundary is defined in `adaptive_audio.classification`: it returns time-stamped scores for `speech`, `music`, `action`, and `other`. `ManualClassifier` reads known labels from JSON; `evaluation/example_labels.json` shows the format. An optional [YAMNet ONNX model](https://huggingface.co/audiomagic/yamnet-onnx) adapter can generate scores from WAV audio:
+
+```powershell
+python -m pip install -e ".[ai]"
+adaptive-audio-classify audio/tos_excerpt_original.wav --output audio/tos_excerpt.labels.json
+```
+
+The first run downloads pinned model files (about 16 MB) to `models/yamnet/` and verifies their SHA-256 hashes. Model files and generated labels are kept out of Git. The adapter uses FFmpeg to downmix and resample to the 16 kHz mono input expected by [Google's YAMNet](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet). It groups selected AudioSet classes into the four project categories; these normalized category scores are **heuristic, not calibrated probabilities**. Model windows overlap. Classification is not yet connected to gain processing. The next stage will use these scores with measured levels and compare the result with the existing baseline on the same scenes.
 
 ## Tests
 
