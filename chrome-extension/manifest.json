@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Adaptive Audio Capture Probe",
-  "version": "0.1.0",
-  "description": "Check whether a Chrome tab supplies audio that can be processed and replayed.",
+  "version": "0.2.0",
+  "description": "Compress a Chrome tab's audio live, with an original-audio comparison switch.",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "tabCapture", "offscreen"],
   "background": {"service_worker": "background.js"},
@@ -11,6 +11,10 @@
     "_execute_action": {
       "suggested_key": {"default": "Alt+Shift+A"},
       "description": "Start or stop audio capture for the current tab"
+    },
+    "toggle_processing": {
+      "suggested_key": {"default": "Alt+Shift+P"},
+      "description": "Switch between compressed and original audio"
     }
   }
 }

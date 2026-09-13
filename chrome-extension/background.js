@@ -48,15 +48,28 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 });
 
+chrome.commands.onCommand.addListener(async (command, tab) => {
+  if (command !== "toggle_processing" || tab?.id === undefined) return;
+  try {
+    const result = await chrome.runtime.sendMessage({target: "offscreen", type: "TOGGLE", tabId: tab.id});
+    if (!result?.ok) throw new Error(result?.error || "Audio mode did not change");
+    await chrome.action.setTitle({tabId: tab.id, title: result.processed
+      ? "Compressed audio is active; Alt+Shift+P for original audio"
+      : "Original audio is active; Alt+Shift+P for compressed audio"});
+  } catch (error) {
+    console.error("Adaptive Audio mode change failed", error);
+  }
+});
+
 chrome.runtime.onMessage.addListener((message) => {
   if (message.target !== "background") return;
   if (message.type === "LEVEL") {
     const audible = message.rms > 0.0001;
     void setBadge(
       message.tabId,
-      audible ? "AUD" : "0",
+      audible ? (message.processed ? "CMP" : "AUD") : "0",
       audible ? "#137333" : "#b26a00",
-      audible ? "Tab audio is reaching the extension" : "Capture is active; no audio detected",
+      audible ? (message.processed ? "Compressed audio is playing" : "Original audio is playing") : "Capture is active; no audio detected",
     );
   } else if (message.type === "STOPPED") {
     void setBadge(message.tabId, "", "#555555", "Click to start tab audio capture");

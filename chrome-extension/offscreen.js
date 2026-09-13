@@ -19,9 +19,23 @@ async function startCapture(tabId, streamId) {
   const context = new AudioContext({latencyHint: "interactive"});
   try {
     const source = context.createMediaStreamSource(stream);
+    const dry = context.createGain();
+    const wet = context.createGain();
+    const compressor = context.createDynamicsCompressor();
+    compressor.threshold.value = -20;
+    compressor.knee.value = 12;
+    compressor.ratio.value = 2.5;
+    compressor.attack.value = 0.01;
+    compressor.release.value = 0.25;
+    dry.gain.value = 0;
+    wet.gain.value = 0.9;
     const analyser = context.createAnalyser();
     analyser.fftSize = 2048;
-    source.connect(analyser);
+    source.connect(dry);
+    source.connect(compressor);
+    dry.connect(analyser);
+    compressor.connect(wet);
+    wet.connect(analyser);
     analyser.connect(context.destination);
     await context.resume();
 
@@ -31,9 +45,9 @@ async function startCapture(tabId, streamId) {
       let sumSquares = 0;
       for (const sample of samples) sumSquares += sample * sample;
       const rms = Math.sqrt(sumSquares / samples.length);
-      chrome.runtime.sendMessage({target: "background", type: "LEVEL", tabId, rms}).catch(() => {});
+      chrome.runtime.sendMessage({target: "background", type: "LEVEL", tabId, rms, processed: activeCapture?.processed ?? false}).catch(() => {});
     }, 500);
-    activeCapture = {tabId, stream, context, timer};
+    activeCapture = {tabId, stream, context, timer, dry, wet, processed: true};
     stream.getAudioTracks().forEach((track) => {
       track.addEventListener("ended", () => { void stopCapture(tabId); }, {once: true});
     });
@@ -44,12 +58,26 @@ async function startCapture(tabId, streamId) {
   }
 }
 
+function toggleProcessing(tabId) {
+  if (!activeCapture || activeCapture.tabId !== tabId) throw new Error("Start capture on this tab first");
+  const capture = activeCapture;
+  capture.processed = !capture.processed;
+  const now = capture.context.currentTime;
+  for (const [gain, target] of [[capture.dry.gain, capture.processed ? 0 : 1], [capture.wet.gain, capture.processed ? 0.9 : 0]]) {
+    gain.cancelScheduledValues(now);
+    gain.setTargetAtTime(target, now, 0.02);
+  }
+  return capture.processed;
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.target !== "offscreen") return;
   const operation = message.type === "START"
     ? startCapture(message.tabId, message.streamId)
-    : message.type === "STOP" ? stopCapture(message.tabId) : Promise.reject(new Error("Unknown command"));
-  operation.then(() => sendResponse({ok: true}))
+    : message.type === "STOP" ? stopCapture(message.tabId)
+      : message.type === "TOGGLE" ? Promise.resolve().then(() => toggleProcessing(message.tabId))
+        : Promise.reject(new Error("Unknown command"));
+  operation.then((processed) => sendResponse({ok: true, processed}))
     .catch((error) => sendResponse({ok: false, error: error.message}));
   return true;
 });
