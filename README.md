@@ -48,6 +48,8 @@ The full MOV was processed directly as `audio/ToS-4k-1920_balanced.mov`; its vid
 
 After full-film listening showed the original Balanced curve lowered dialogue too far, `audio/tos_full_balanced_v2.wav` and `audio/ToS-4k-1920_balanced_v2.mov` were rendered with a revised Balanced curve. The old files remain for comparison. On 260 model-identified likely-speech windows, the median level change versus the original WAV is +0.93 dB in v2, compared with -4.65 dB in the old Balanced WAV. These are measured levels, not a substitute for listening. The v2 MOV retains the original duration and video stream.
 
+`audio/tos_full_balanced_v3.wav` and `audio/ToS-4k-1920_balanced_v3.mov` add a small amount of reduction only toward the loud end of the Balanced curve. Across the full-film 100 ms measurements, input windows around -20 dBFS remain about unchanged, while windows at -10 dBFS or louder receive a median 7.48 dB reduction versus 5.98 dB in v2. The v3 MOV retains the original duration and video stream.
+
 Compare the original, Balanced, and either Night version at the **same player volume**. Listen for clear dialogue, the impact of louder events, pumping, and audible distortion. To recreate the excerpt with FFmpeg installed:
 
 ```powershell

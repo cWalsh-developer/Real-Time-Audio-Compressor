@@ -4,9 +4,9 @@ import numpy as np
 
 
 MODES = {
-    "cinema": (-32.0, -14.0, 1.0, -2.0),
-    "balanced": (-30.0, -10.0, 6.0, -6.0),
-    "night": (-32.0, -20.0, 8.0, -12.0),
+    "cinema": ((-32.0, -14.0), (1.0, -2.0)),
+    "balanced": ((-30.0, -20.0, -10.0), (6.0, 0.0, -7.5)),
+    "night": ((-32.0, -20.0), (8.0, -12.0)),
 }
 
 
@@ -22,8 +22,8 @@ def plan_gain(levels: np.ndarray, peaks: np.ndarray, mode: str, adjustment_db: n
         raise ValueError(f"Unknown mode: {mode}")
     if len(levels) == 0:
         return np.empty(0)
-    quiet_db, loud_db, quiet_gain, loud_gain = MODES[mode]
-    gain_db = np.interp(levels, [quiet_db, loud_db], [quiet_gain, loud_gain])
+    level_points, gain_points = MODES[mode]
+    gain_db = np.interp(levels, level_points, gain_points)
     if adjustment_db is not None:
         if adjustment_db.shape != gain_db.shape:
             raise ValueError("Semantic adjustment must match analysis frames")

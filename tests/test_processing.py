@@ -78,3 +78,13 @@ def test_balanced_still_reduces_loud_action_by_at_least_five_db():
     change_db = 20 * np.log10(np.sqrt(np.mean(output.astype(float) ** 2)) /
                               np.sqrt(np.mean(action.astype(float) ** 2)))
     assert change_db <= -5
+
+
+def test_balanced_adds_a_little_more_reduction_to_loud_passages():
+    rate = 8000
+    time = np.arange(rate * 2) / rate
+    loud = (0.5 * np.sin(2 * np.pi * 440 * time)).astype(np.float32)
+    output = process_audio(loud, rate, "balanced")
+    change_db = 20 * np.log10(np.sqrt(np.mean(output.astype(float) ** 2)) /
+                              np.sqrt(np.mean(loud.astype(float) ** 2)))
+    assert -8 <= change_db <= -7
