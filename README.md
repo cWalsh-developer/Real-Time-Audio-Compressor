@@ -26,7 +26,23 @@ ffmpeg -i movie.mkv -map 0:a:0 -ac 2 -ar 48000 -c:a pcm_s16le movie.wav
 adaptive-audio movie.wav --mode balanced
 ```
 
-This version outputs audio only. It does not remux a processed track into a video file. It uses the same gain for all channels, smooths the gain curve with offline look-ahead, and scales the final result to a -1 dBFS sample-peak ceiling. The ceiling is **sample peak**, not true peak; check the output with a suitable meter before using it for critical listening.
+This version outputs audio only. It does not remux a processed track into a video file. It uses the same gain for all channels, smooths the gain curve with offline look-ahead, and limits peaks locally to a -1 dBFS sample-peak ceiling. The ceiling is **sample peak**, not true peak; check the output with a suitable meter before using it for critical listening.
+
+## Tears of Steel test clip
+
+The source MOV at `audio/ToS-4k-1920.mov/ToS-4k-1920.mov` is kept outside Git. A 60-second excerpt from 06:30–07:30 has been extracted and processed locally:
+
+- `audio/tos_excerpt_original.wav`
+- `audio/tos_excerpt_balanced.wav`
+- `audio/tos_excerpt_night.wav`
+
+Compare those three files at the **same player volume**. Listen for clear dialogue, the impact of louder events, pumping, and audible distortion. To recreate the excerpt with FFmpeg installed:
+
+```powershell
+ffmpeg -ss 00:06:30 -i "audio/ToS-4k-1920.mov/ToS-4k-1920.mov" -t 60 -map 0:a:0 -ac 2 -ar 44100 -c:a pcm_s16le audio/tos_excerpt_original.wav
+adaptive-audio audio/tos_excerpt_original.wav --mode balanced --output audio/tos_excerpt_balanced.wav
+adaptive-audio audio/tos_excerpt_original.wav --mode night --output audio/tos_excerpt_night.wav
+```
 
 ## Modes
 
