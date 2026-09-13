@@ -1,6 +1,6 @@
 # Adaptive Audio MVP
 
-A runnable offline processor for reducing uncomfortable loudness changes while retaining some quiet/loud contrast. It accepts **MOV files or uncompressed 16-bit PCM WAV** files in Cinema, Balanced, or Night mode. By default it uses short-window RMS levels and deterministic gain planning. An optional pretrained classifier can inform the gain plan. It does not yet measure LUFS.
+A runnable offline processor for reducing uncomfortable loudness changes while retaining some quiet/loud contrast. It accepts **MOV, MP4, or uncompressed 16-bit PCM WAV** files in Cinema, Balanced, or Night mode. By default it uses short-window RMS levels and deterministic gain planning. An optional pretrained classifier can inform the gain plan. It does not yet measure LUFS.
 
 ## Set up
 
@@ -18,10 +18,11 @@ Run it:
 adaptive-audio input.wav --mode balanced
 adaptive-audio input.wav --mode night --output output.wav
 adaptive-audio input.mov --mode balanced --output output.mov
+adaptive-audio input.mp4 --mode balanced --output output.mp4
 adaptive-audio input.mov --mode balanced --ai --output output_ai.mov
 ```
 
-The default output is `input_balanced.wav` or `input_balanced.mov` (depending on the input). The original is never overwritten. MOV processing uses a bundled FFmpeg binary: it extracts the **first audio track** to stereo PCM, processes it, then copies the original video stream and encodes the new audio as AAC. It copies subtitle streams when present. Other audio tracks are not included in the output.
+The default output adds `_balanced` before the input extension. The original is never overwritten. MOV and MP4 processing use a bundled FFmpeg binary: it extracts the **first audio track** to stereo PCM, processes it, then copies the original video stream and encodes the new audio as AAC. It copies subtitle streams when present. Other audio tracks are not included in the output.
 
 To extract audio manually with a separate FFmpeg installation:
 

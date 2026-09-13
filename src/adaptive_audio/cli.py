@@ -11,8 +11,8 @@ from .yamnet import classify_wav, download_model
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Adaptive audio WAV and MOV processor")
-    parser.add_argument("input", type=Path, help="16-bit PCM WAV or MOV file")
+    parser = argparse.ArgumentParser(description="Adaptive audio WAV, MOV, and MP4 processor")
+    parser.add_argument("input", type=Path, help="16-bit PCM WAV, MOV, or MP4 file")
     parser.add_argument("--mode", choices=MODES, default="balanced")
     parser.add_argument("--output", type=Path)
     semantic = parser.add_mutually_exclusive_group()
@@ -22,14 +22,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if not args.input.is_file():
         parser.error(f"Input file does not exist: {args.input}")
-    if args.input.suffix.lower() not in (".wav", ".mov"):
-        parser.error("Input must be a 16-bit PCM WAV or MOV file")
+    if args.input.suffix.lower() not in (".wav", ".mov", ".mp4"):
+        parser.error("Input must be a 16-bit PCM WAV, MOV, or MP4 file")
     output = args.output or args.input.with_name(f"{args.input.stem}_{args.mode}.wav")
     if output.resolve() == args.input.resolve():
         parser.error("Output must differ from input")
     try:
         labels = read_scores(args.labels) if args.labels else None
-        if args.input.suffix.lower() == ".mov":
+        if args.input.suffix.lower() in (".mov", ".mp4"):
             process_video(args.input, output, args.mode, labels=labels,
                           use_ai=args.ai, model_directory=args.model_dir)
         else:
