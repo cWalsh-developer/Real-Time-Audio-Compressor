@@ -37,7 +37,12 @@ def prepare(speech_path: Path, music_path: Path, output_dir: Path) -> None:
     print(f"speech {rms_db(speech):.2f} dBFS, music {rms_db(music):.2f} dBFS")
 
 
-def analyze(output_dir: Path, delay_samples: int) -> None:
+def analyze(
+    output_dir: Path,
+    delay_samples: int,
+    music_preview_path: Path | None = None,
+    mixture_preview_path: Path | None = None,
+) -> None:
     def load(name: str) -> np.ndarray:
         samples, rate = read_wav(output_dir / name)
         if rate != 48000 or samples.ndim != 2 or samples.shape[1] != 2:
@@ -51,8 +56,16 @@ def analyze(output_dir: Path, delay_samples: int) -> None:
         raise ValueError("input files have different shapes")
     if np.max(np.abs(mixture - (speech + music))) > 2 / 32768:
         raise ValueError("mixture is not the sum of the two sources")
-    music_preview = load(f"{output_dir.name}_music_residual_preview.wav")
-    mixture_preview = load(f"{output_dir.name}_mixture_residual_preview.wav")
+    def load_preview(path: Path) -> np.ndarray:
+        samples, rate = read_wav(path)
+        if rate != 48000 or samples.ndim != 2 or samples.shape[1] != 2:
+            raise ValueError(f"expected stereo 48 kHz WAV: {path}")
+        return samples.astype(np.float64)
+
+    music_preview = load_preview(music_preview_path or output_dir / f"{output_dir.name}_music_residual_preview.wav")
+    mixture_preview = load_preview(
+        mixture_preview_path or output_dir / f"{output_dir.name}_mixture_residual_preview.wav"
+    )
     if music_preview.shape != speech.shape or mixture_preview.shape != speech.shape:
         raise ValueError("preview files have different shapes")
     if delay_samples < 0 or delay_samples >= len(speech) - 9600:
@@ -68,6 +81,7 @@ def analyze(output_dir: Path, delay_samples: int) -> None:
     print(f"speech contribution change: {change_db:+.2f} dB")
     print(f"speech contribution correlation: {correlation:.4f}")
     print(f"relative difference: {error_db:+.2f} dB")
+    print(f"music-only level change: {rms_db(music_preview) - rms_db(music):+.2f} dB")
     print("This is a counterfactual speech contribution, not an isolated output stem.")
 
 
@@ -81,11 +95,13 @@ def main() -> None:
     check = subparsers.add_parser("analyze")
     check.add_argument("output_dir", type=Path)
     check.add_argument("--delay-samples", type=int, default=1888)
+    check.add_argument("--music-preview", type=Path)
+    check.add_argument("--mixture-preview", type=Path)
     args = parser.parse_args()
     if args.command == "prepare":
         prepare(args.speech, args.music, args.output_dir)
     else:
-        analyze(args.output_dir, args.delay_samples)
+        analyze(args.output_dir, args.delay_samples, args.music_preview, args.mixture_preview)
 
 
 if __name__ == "__main__":
