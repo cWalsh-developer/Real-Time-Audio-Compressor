@@ -56,11 +56,27 @@ a model accuracy claim.
 - Overlapping speech and effects: report separately. A global gain processor
   cannot meet simultaneous speech-preservation and effect-reduction targets.
 
-The next committable stages are (1) manually label a small set of local
-dialogue, raised-dialogue, music, and effects windows and make a repeatable
-browser-render report; (2) tune transient and sustained-event control against
-those windows, including gain stability and recovery; (3) evaluate streaming
-speech/event classification; and (4) prototype source separation only if the
-overlap case and real-time performance justify it. The live extension should
-remain on the reverted, known-better processor until a candidate passes the
-local checks and a listening comparison.
+## Stem-first processing target
+
+The intended default is to **estimate dialogue, music, and effects stems first**,
+then apply event reduction to music and effects while passing the dialogue stem
+at unity gain. The browser only receives the mixed soundtrack, not the original
+production tracks. A separation model therefore estimates stems, and speech
+leakage into music/effects could still make dialogue quieter. Judge that by
+listening to the separated stems and to overlapping speech/effect scenes.
+
+For an estimated music/effects stem, a remix can use the untouched input mix as
+its reference and subtract only the requested reduction of those stems. At zero
+reduction this is exactly the original input, even if estimated stems do not
+sum perfectly. It does not remove leakage during reduction; that requires a
+better separator or conservative gain decisions.
+
+The next committable stages are (1) make an offline stem-first listening and
+latency trial on local film/TV material; (2) compare dialogue level, leakage,
+music/effects reduction, artifacts, and input-to-output delay against bypass;
+(3) implement a streaming separator only if it can keep up on representative
+hardware with acceptable playback delay and recovery; and (4) enable it as the
+live default after browser listening and lip-sync checks. If separation misses
+its deadline or fails, play the original audio rather than hold stale audio.
+The existing level-only extension remains the working prototype until the
+stem-first route passes those checks.
