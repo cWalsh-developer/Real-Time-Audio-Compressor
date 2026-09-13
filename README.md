@@ -72,7 +72,7 @@ The report gives duration, sample peak, and the 10th, 50th, and 90th percentiles
 
 ## Next stage: semantic classifier
 
-Add an independent component that outputs time-stamped probabilities for `speech`, `music`, `action`, and `other`. The decision engine can then use those labels with measured level to choose gains. Keep model inference separate from DSP so that the gain engine remains deterministic and can be tested with known labels. Compare the classifier-enabled output with this baseline on the same 10–20 scenes; prioritize fewer remote-control volume changes, dialogue clarity, preserved dynamics, and absence of pumping or clipping over classification accuracy alone.
+The classifier boundary is defined in `adaptive_audio.classification`: it returns time-stamped probabilities for `speech`, `music`, `action`, and `other`. `ManualClassifier` reads known labels from JSON; `evaluation/example_labels.json` shows the format. No pretrained model or content-aware gain adjustment is enabled yet. The next stage is a model adapter, followed by a decision engine that uses scores and measured levels. Compare that output with this baseline on the same scenes; prioritize fewer remote-control volume changes, dialogue clarity, preserved dynamics, and absence of pumping or clipping over classification accuracy alone.
 
 ## Tests
 

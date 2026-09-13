@@ -1,0 +1,6 @@
+{
+  "segments": [
+    {"start_seconds": 0, "end_seconds": 1, "scores": {"speech": 1, "music": 0, "action": 0, "other": 0}},
+    {"start_seconds": 1, "end_seconds": 2, "scores": {"speech": 0, "music": 0, "action": 1, "other": 0}}
+  ]
+}
