@@ -1,11 +1,11 @@
 let activeCapture;
 const COMPRESSION = Object.freeze({
-  threshold: -30,
+  threshold: -24,
   knee: 6,
   ratio: 6,
   attack: 0.005,
   release: 0.3,
-  outputGain: 0.3,
+  outputGain: 0.46,
 });
 
 async function stopCapture(tabId) {
