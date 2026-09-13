@@ -1,0 +1,8 @@
+# Optional isolated native streaming-model evaluation environment, Python 3.12.
+numpy==2.5.3
+onnxruntime==1.30.0
+scipy==1.16.3
+flatbuffers==25.12.19
+packaging==26.3
+protobuf==7.36.1
+imageio-ffmpeg==0.6.0
