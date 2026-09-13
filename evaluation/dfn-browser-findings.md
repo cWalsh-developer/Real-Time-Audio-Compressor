@@ -64,9 +64,47 @@ Raw enhanced output still fails our quality target:
 
 This is a promising **latency reference**, not a model selection. Feeding its
 raw output to speakers would make ordinary dialogue audibly quieter and remove
-too much programme audio. The next experiment should align its speech estimate
-with a delayed original and reduce only a loud, estimated non-dialogue residual.
-It must prove unchanged ordinary speech, natural overlap, no gain pumping,
-stereo preservation, and stable continuous playback. If the speech residual
-contains too much dialogue, a small causal model trained specifically for
-cinematic dialogue/non-dialogue separation will be needed.
+too much programme audio.
+
+## Residual-gated preview and controlled overlap
+
+The next isolated experiment delayed the original by 1,888 samples (39.33 ms),
+subtracted the model's speech estimate, and reduced that residual by up to 6 dB
+only when its smoothed level crossed an event threshold. It uses attack,
+release, hysteresis, and hold times to avoid a rapidly moving gain. The code is
+in `dfn_probe_worklet.js`, accessible through `--preview-only`; the live
+extension is unchanged. The thresholds and timings are experimental, not
+production tuning.
+
+On the same machine, 12-second stereo clips rendered in about 1.1-1.4 seconds.
+On a speech-dominant *Tears of Steel* excerpt (24-36 s), total level changed by
+less than 0.001 dB. On the quiet `service_middle` speech excerpt, it changed by
+-0.004 dB. On the loud *Tears of Steel* passage (208-220 s), total level fell
+5.57 dB. These isolated cases look encouraging, but total level cannot reveal
+what happens to speech when music plays at the same time.
+
+For a controlled overlap, `dfn_overlap_check.py` mixes the local speech excerpt
+with a 12-second music clip from `cycles2015_original.wav`. The speech and music
+inputs are -24.89 and -14.51 dBFS after scaling. Process the music alone and
+the same music plus speech through separate fresh model instances. The
+difference between their processed outputs is a **counterfactual speech
+contribution**, not an isolated output stem; model and event-gate nonlinearity
+can affect it. Here it is 3.24 dB lower than the known delayed speech input,
+with 0.9574 correlation. This fails the goal that dialogue stay perceptually
+unchanged during loud music.
+
+Reproduce with these local clips (generated WAVs remain ignored):
+
+```powershell
+python evaluation/dfn_overlap_check.py prepare audio/separation/tos_speech_24_36.wav audio/eval/cycles2015_original.wav audio/separation/dfn_synthetic
+python evaluation/dfn_browser_probe.py --preview-only --output-dir audio/separation/dfn_synthetic audio/separation/dfn_synthetic/music.wav audio/separation/dfn_synthetic/mixture.wav
+python evaluation/dfn_overlap_check.py analyze audio/separation/dfn_synthetic
+```
+
+The direct and residual-gated variants therefore remain evaluation tools, not
+extension defaults. The measured browser speed shows a small model can meet a
+compute budget, but DeepFilterNet3 was built for speech enhancement rather
+than film dialogue/effects separation. Next, seek or train a causal separator
+for these sources, repeat the controlled overlap test, and then test continuous
+AudioWorklet scheduling and lip sync in the extension. Offline rendering speed
+alone does not prove stable live playback.
