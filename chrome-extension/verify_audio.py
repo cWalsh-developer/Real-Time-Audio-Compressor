@@ -50,6 +50,41 @@ RENDER = """async () => {
   return {changes, dialogueDifference, stereoDifference: stereoDifference / rate};
 }"""
 
+BURST_RENDER = """async () => {
+  const rate = 48000;
+  const context = new OfflineAudioContext(1, rate * 3, rate);
+  await context.audioWorklet.addModule('loudness-reducer.js');
+  const buffer = context.createBuffer(1, rate * 3, rate);
+  const input = buffer.getChannelData(0);
+  for (let i = 0; i < input.length; i++) {
+    const time = i / rate;
+    const amplitude = time >= 2 && time < 2.12 ? 0.95 : 0.15;
+    input[i] = amplitude * Math.sin(2 * Math.PI * 440 * time);
+  }
+  const source = context.createBufferSource();
+  const reducer = new AudioWorkletNode(context, 'loudness-reducer', {
+    outputChannelCount: [2],
+  });
+  source.buffer = buffer;
+  source.connect(reducer);
+  reducer.connect(context.destination);
+  source.start();
+  const output = (await context.startRendering()).getChannelData(0);
+  let dialogueDifference = 0;
+  for (let i = rate; i < 2 * rate; i++) {
+    dialogueDifference = Math.max(dialogueDifference, Math.abs(output[i] - input[i]));
+  }
+  let before = 0;
+  let after = 0;
+  let peak = 0;
+  for (let i = Math.round(2.03 * rate); i < Math.round(2.10 * rate); i++) {
+    before += input[i] ** 2;
+    after += output[i] ** 2;
+    peak = Math.max(peak, Math.abs(output[i]));
+  }
+  return {change: 10 * Math.log10(after / before), peak, dialogueDifference};
+}"""
+
 
 def main() -> None:
     extension = Path(__file__).resolve().parent
@@ -73,14 +108,18 @@ def main() -> None:
                 page = browser.new_page()
                 page.goto(worker.url.replace("background.js", "offscreen.html"))
                 result = page.evaluate(RENDER)
+                burst = page.evaluate(BURST_RENDER)
             finally:
                 browser.close()
     quiet, moderate, loud, loudest = result["changes"]
     assert abs(quiet) < 0.01 and abs(moderate) < 0.01, result
-    assert -11 < loudest < -10 and loud < -6, result
+    assert abs(loud) < 0.01 and -11 < loudest < -10, result
     assert result["dialogueDifference"] < 1e-6, result
     assert result["stereoDifference"] > 0.01, result
+    assert -13 < burst["change"] < -8 and burst["peak"] <= 0.8, burst
+    assert burst["dialogueDifference"] < 1e-6, burst
     print("Rendered gain changes (dB):", [round(value, 2) for value in result["changes"]])
+    print("Burst change (dB):", round(burst["change"], 2))
     print("Dialogue passthrough and stereo separation verified")
 
 
