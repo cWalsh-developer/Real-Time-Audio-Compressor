@@ -6,5 +6,11 @@
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "tabCapture", "offscreen"],
   "background": {"service_worker": "background.js"},
-  "action": {"default_title": "Click to start or stop tab audio capture"}
+  "action": {"default_title": "Click to start or stop tab audio capture"},
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {"default": "Alt+Shift+A"},
+      "description": "Start or stop audio capture for the current tab"
+    }
+  }
 }

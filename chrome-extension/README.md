@@ -7,7 +7,9 @@ This unpacked Manifest V3 extension tests Chrome's tab-audio path. Clicking its 
 1. Open `chrome://extensions` in Chrome, turn on **Developer mode**, and choose **Load unpacked**.
 2. Select this `chrome-extension` folder.
 3. Play an ordinary video tab with audible sound. Click the extension icon. Confirm the audio continues, the badge changes to `AUD`, and the sound remains synchronized with the picture. Click again to stop.
-4. Repeat on Netflix while signed in and playing a title. Record whether capture starts, whether `AUD` appears during audible content, whether sound reaches the speakers, and whether lip-sync changes.
+4. Repeat on Netflix while signed in and playing a title. For fullscreen, enter Netflix's video fullscreen **before** starting capture, then press **Alt+Shift+A** to activate the extension. Press the shortcut again to stop. If that shortcut is unavailable, set one at `chrome://extensions/shortcuts`.
+
+Chrome may prevent a video player from entering fullscreen **after** tab capture begins. If you are already capturing, stop capture, enter fullscreen, then use the shortcut. If the player still exits fullscreen, try Chrome's **F11** window fullscreen as a fallback and report whether it behaves differently.
 
 Chrome requires a user click before tab capture. When a tab is captured, Chrome stops its normal audio output, so the extension explicitly routes captured audio back to the speakers. The extension uses an offscreen document to keep the audio graph running after the click. It needs Chrome 116 or newer.
 
