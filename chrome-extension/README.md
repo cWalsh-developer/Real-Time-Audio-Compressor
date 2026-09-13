@@ -1,6 +1,6 @@
 # Chrome live-audio prototype
 
-This unpacked Manifest V3 extension captures a tab's audio, applies stronger live dynamic-range compression, and replays it to the default speaker output. It does not record, upload, classify, or use a multi-second buffer. The live effect combines a Web Audio compressor with a level-sensitive AudioWorklet; it is **not** the Python Balanced curve or the AI classifier. A green `CMP` badge means compressed audio is playing; green `AUD` means original audio is playing; amber `0` means capture is active but no audio was measured; `ERR` means capture failed.
+This unpacked Manifest V3 extension captures a tab's audio, reduces loud passages in real time, and replays it to the default speaker output. It does not record, upload, classify, or use a multi-second buffer. A level-sensitive AudioWorklet passes dialogue-range audio through unchanged and attenuates only higher-level passages. It is **not** the Python Balanced curve or the AI classifier. A green `CMP` badge means loudness reduction is active; green `AUD` means original audio is playing; amber `0` means capture is active but no audio was measured; `ERR` means capture failed.
 
 ## Load and test
 
@@ -13,6 +13,8 @@ Chrome may prevent a video player from entering fullscreen **after** tab capture
 
 Chrome requires a user click before tab capture. When a tab is captured, Chrome stops its normal audio output, so the extension explicitly routes captured audio back to the speakers. The extension uses an offscreen document to keep the audio graph running after the click. It needs Chrome 116 or newer.
 
-The compressor uses a -24 dBFS threshold, 6 dB knee, 12:1 ratio, 5 ms attack, 300 ms release, and output gain calibrated to keep typical dialogue above its original volume. A second stage lifts quieter passages by up to 5 dB and reduces sustained passages above about -17 dBFS by up to another 4 dB. These are listening-test settings; it has no dialogue recognition or LUFS target, so quiet effects can be lifted and a loud voice can trigger the extra reduction. Please compare dialogue, loud effects, pumping, and lip-sync on the same title and speaker volume. The existing 2-second Python rolling buffer cannot be inserted into this audio-only path without making sound late relative to video.
+The reducer applies unity gain below about -11 dBFS RMS and progressively attenuates louder passages, up to 10.5 dB. It never boosts audio. These are listening-test settings; it has no dialogue recognition or LUFS target, so sufficiently loud speech may still be reduced. Please compare dialogue, loud effects, pumping, and lip-sync on the same title and speaker volume. The existing 2-second Python rolling buffer cannot be inserted into this audio-only path without making sound late relative to video.
 
 Sources: [Chrome tabCapture](https://developer.chrome.com/docs/extensions/reference/api/tabCapture), [Chrome offscreen documents](https://developer.chrome.com/docs/extensions/reference/api/offscreen).
+
+To repeat the browser audio-render check, install Playwright (`python -m pip install playwright`), install its Chromium build (`python -m playwright install chromium`), then run `python chrome-extension/verify_audio.py` from the project root.

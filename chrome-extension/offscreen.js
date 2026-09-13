@@ -1,12 +1,4 @@
 let activeCapture;
-const COMPRESSION = Object.freeze({
-  threshold: -24,
-  knee: 6,
-  ratio: 12,
-  attack: 0.005,
-  release: 0.3,
-  outputGain: 0.61,
-});
 
 async function stopCapture(tabId) {
   if (!activeCapture || (tabId !== undefined && activeCapture.tabId !== tabId)) return;
@@ -30,25 +22,16 @@ async function startCapture(tabId, streamId) {
     const source = context.createMediaStreamSource(stream);
     const dry = context.createGain();
     const wet = context.createGain();
-    const compressor = context.createDynamicsCompressor();
     const loudnessReducer = new AudioWorkletNode(context, "loudness-reducer", {
-      numberOfInputs: 2,
       outputChannelCount: [2],
     });
-    compressor.threshold.value = COMPRESSION.threshold;
-    compressor.knee.value = COMPRESSION.knee;
-    compressor.ratio.value = COMPRESSION.ratio;
-    compressor.attack.value = COMPRESSION.attack;
-    compressor.release.value = COMPRESSION.release;
     dry.gain.value = 0;
-    wet.gain.value = COMPRESSION.outputGain;
+    wet.gain.value = 1;
     const analyser = context.createAnalyser();
     analyser.fftSize = 2048;
     source.connect(dry);
-    source.connect(compressor);
-    source.connect(loudnessReducer, 0, 1);
+    source.connect(loudnessReducer);
     dry.connect(analyser);
-    compressor.connect(loudnessReducer, 0, 0);
     loudnessReducer.connect(wet);
     wet.connect(analyser);
     analyser.connect(context.destination);
@@ -78,7 +61,7 @@ function toggleProcessing(tabId) {
   const capture = activeCapture;
   capture.processed = !capture.processed;
   const now = capture.context.currentTime;
-  for (const [gain, target] of [[capture.dry.gain, capture.processed ? 0 : 1], [capture.wet.gain, capture.processed ? COMPRESSION.outputGain : 0]]) {
+  for (const [gain, target] of [[capture.dry.gain, capture.processed ? 0 : 1], [capture.wet.gain, capture.processed ? 1 : 0]]) {
     gain.cancelScheduledValues(now);
     gain.setTargetAtTime(target, now, 0.02);
   }
