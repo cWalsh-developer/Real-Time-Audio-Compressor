@@ -1,0 +1,8 @@
+{
+  "source": "audio/ToS-4k-1920.mov/ToS-4k-1920.mov",
+  "windows": [
+    {"name": "opening", "start": "00:00:00", "duration_seconds": 60},
+    {"name": "middle", "start": "00:06:30", "duration_seconds": 60},
+    {"name": "closing", "start": "00:10:30", "duration_seconds": 60}
+  ]
+}

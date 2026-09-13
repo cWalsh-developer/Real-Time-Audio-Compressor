@@ -49,6 +49,19 @@ adaptive-audio audio/tos_excerpt_original.wav --mode night --output audio/tos_ex
 
 Cinema makes small changes, Balanced gives quieter passages a gentle lift and reduces loud passages, and Night applies the strongest change. Mode values are provisional and should be tuned against real listening samples. Since this stage has no classifier, a quiet sound effect can be raised just like quiet dialogue. That is the reason for the next stage.
 
+## Evaluation
+
+The reproducible Tears of Steel windows are listed in `evaluation/scenes.json`. The first set samples the opening, middle, and closing minute; they are time selections, not verified content labels. Keep the source and generated WAV files in `audio/`, which Git ignores.
+
+Compare two aligned WAV files with:
+
+```powershell
+adaptive-audio-report audio/tos_excerpt_original.wav audio/tos_excerpt_balanced.wav
+adaptive-audio-report audio/tos_excerpt_original.wav audio/tos_excerpt_night_v2.wav --json
+```
+
+The report gives duration, sample peak, and the 10th, 50th, and 90th percentiles of 100 ms RMS levels. Its level range is P90 minus P10. These are repeatable **dBFS** measurements, not LUFS or standardized loudness range. They cannot measure dialogue intelligibility, pumping, or listening comfort; use the same player volume for those comparisons and record observations alongside the numbers.
+
 ## Next stage: semantic classifier
 
 Add an independent component that outputs time-stamped probabilities for `speech`, `music`, `action`, and `other`. The decision engine can then use those labels with measured level to choose gains. Keep model inference separate from DSP so that the gain engine remains deterministic and can be tested with known labels. Compare the classifier-enabled output with this baseline on the same 10–20 scenes; prioritize fewer remote-control volume changes, dialogue clarity, preserved dynamics, and absence of pumping or clipping over classification accuracy alone.
