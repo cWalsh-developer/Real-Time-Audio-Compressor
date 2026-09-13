@@ -10,6 +10,44 @@ MODES = {
 }
 
 
+def frame_measurements(audio: np.ndarray) -> tuple[float, float]:
+    rms = np.sqrt(np.mean(np.square(audio, dtype=np.float64)))
+    level = 20 * np.log10(max(rms, 1e-8))
+    peak = np.max(np.abs(audio))
+    return level, peak
+
+
+def plan_gain(levels: np.ndarray, peaks: np.ndarray, mode: str) -> np.ndarray:
+    if mode not in MODES:
+        raise ValueError(f"Unknown mode: {mode}")
+    if len(levels) == 0:
+        return np.empty(0)
+    quiet_db, loud_db, quiet_gain, loud_gain = MODES[mode]
+    gain_db = np.interp(levels, [quiet_db, loud_db], [quiet_gain, loud_gain])
+    radius = 5
+    offsets = np.arange(-radius, radius + 1)
+    kernel = np.exp(-0.5 * (offsets / 2.0) ** 2)
+    kernel /= kernel.sum()
+    padded = np.pad(gain_db, (radius, radius), mode="edge")
+    smooth = np.convolve(padded, kernel, mode="valid")
+    ceiling = 10 ** (-1 / 20)
+    peak_cap_db = 20 * np.log10(ceiling / np.maximum(peaks, 1e-8))
+    return np.minimum(smooth, peak_cap_db)
+
+
+def apply_gain(audio: np.ndarray, sample_rate: int, gain_db: np.ndarray, start: int = 0) -> np.ndarray:
+    window = max(1, round(sample_rate * 0.1))
+    frame_centers = np.arange(len(gain_db)) * window + window / 2
+    per_sample_db = np.interp(np.arange(start, start + len(audio)), frame_centers, gain_db)
+    gain = 10 ** (per_sample_db / 20)
+    result = audio.astype(np.float64) * (gain[:, None] if audio.ndim == 2 else gain)
+    ceiling = 10 ** (-1 / 20)
+    sample_peaks = np.max(np.abs(result), axis=1) if audio.ndim == 2 else np.abs(result)
+    final_scale = np.minimum(1.0, ceiling / np.maximum(sample_peaks, 1e-8))
+    result *= final_scale[:, None] if audio.ndim == 2 else final_scale
+    return result.astype(np.float32)
+
+
 def process_audio(audio: np.ndarray, sample_rate: int, mode: str) -> np.ndarray:
     """Apply one shared, smoothly varying gain to mono or multichannel audio.
 
@@ -31,27 +69,5 @@ def process_audio(audio: np.ndarray, sample_rate: int, mode: str) -> np.ndarray:
     peaks = np.empty(frame_count)
     for index in range(frame_count):
         chunk = audio[index * window:(index + 1) * window]
-        levels[index] = 20 * np.log10(max(np.sqrt(np.mean(np.square(chunk, dtype=np.float64))), 1e-8))
-        peaks[index] = np.max(np.abs(chunk))
-
-    quiet_db, loud_db, quiet_gain, loud_gain = MODES[mode]
-    gain_db = np.interp(levels, [quiet_db, loud_db], [quiet_gain, loud_gain])
-    # Symmetric smoothing sees an approaching loud event before it happens.
-    radius = 5
-    offsets = np.arange(-radius, radius + 1)
-    kernel = np.exp(-0.5 * (offsets / 2.0) ** 2)
-    kernel /= kernel.sum()
-    padded = np.pad(gain_db, (radius, radius), mode="edge")
-    smooth = np.convolve(padded, kernel, mode="valid")
-    ceiling = 10 ** (-1 / 20)
-    peak_cap_db = 20 * np.log10(ceiling / np.maximum(peaks, 1e-8))
-    smooth = np.minimum(smooth, peak_cap_db)
-    frame_centers = np.arange(frame_count) * window + window / 2
-    per_sample_db = np.interp(np.arange(len(audio)), frame_centers, smooth)
-    gain = 10 ** (per_sample_db / 20)
-    result = audio.astype(np.float64) * (gain[:, None] if audio.ndim == 2 else gain)
-    # Catch boundary samples where interpolated gain exceeds a frame's cap.
-    sample_peaks = np.max(np.abs(result), axis=1) if audio.ndim == 2 else np.abs(result)
-    final_scale = np.minimum(1.0, ceiling / np.maximum(sample_peaks, 1e-8))
-    result *= final_scale[:, None] if audio.ndim == 2 else final_scale
-    return result.astype(np.float32)
+        levels[index], peaks[index] = frame_measurements(chunk)
+    return apply_gain(audio, sample_rate, plan_gain(levels, peaks, mode))

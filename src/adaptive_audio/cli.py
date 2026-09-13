@@ -3,8 +3,8 @@
 import argparse
 from pathlib import Path
 
-from .processing import MODES, process_audio
-from .wav import read_wav, write_wav
+from .processing import MODES
+from .streaming import process_wav
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -21,9 +21,7 @@ def main(argv: list[str] | None = None) -> int:
     if output.resolve() == args.input.resolve():
         parser.error("Output must differ from input")
     try:
-        audio, sample_rate = read_wav(args.input)
-        processed = process_audio(audio, sample_rate, args.mode)
-        write_wav(output, processed, sample_rate)
+        process_wav(args.input, output, args.mode)
     except (ValueError, OSError) as error:
         parser.error(str(error))
     print(f"Wrote {output}")
