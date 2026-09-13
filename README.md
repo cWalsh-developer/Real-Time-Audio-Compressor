@@ -67,6 +67,8 @@ Cinema makes small changes, Balanced now keeps roughly -20 dBFS passages close t
 
 The reproducible Tears of Steel windows are listed in `evaluation/scenes.json`. The first set samples the opening, middle, and closing minute; they are time selections, not verified content labels. Keep the source and generated WAV files in `audio/`, which Git ignores.
 
+Additional windows from the newly added MP4 and MOV files, with measurements and listening targets, are in `evaluation/additional_scenes.json` and `evaluation/additional_scenes.md`. Full Balanced v3 MP4 outputs are available locally as `audio/bbb_sunflower_balanced_v3.mp4` and `audio/service_balanced_v3.mp4`.
+
 Compare two aligned WAV files with:
 
 ```powershell
