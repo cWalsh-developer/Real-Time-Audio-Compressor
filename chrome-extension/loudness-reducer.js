@@ -4,13 +4,22 @@ class LoudnessReducer extends AudioWorkletProcessor {
     this.meanSquare = 0;
     this.baselineDb = -20;
     this.peakEnvelope = 0;
-    this.gain = 1;
+    this.sustainedGain = 1;
+    this.transientGain = 1;
+    this.heldReductionDb = 0;
+    this.qualifyingSamples = 0;
+    this.holdSamples = 0;
+    this.qualifyFor = Math.round(sampleRate * 0.08);
+    this.holdFor = Math.round(sampleRate * 0.35);
     this.levelSmoothing = Math.exp(-1 / (sampleRate * 0.03));
     this.baselineRise = 1 - Math.exp(-1 / (sampleRate * 5));
     this.baselineFall = 1 - Math.exp(-1 / (sampleRate * 1));
     this.peakRelease = Math.exp(-1 / (sampleRate * 0.08));
-    this.gainAttack = Math.exp(-1 / (sampleRate * 0.005));
-    this.gainRelease = Math.exp(-1 / (sampleRate * 0.4));
+    this.sustainedAttack = Math.exp(-1 / (sampleRate * 0.05));
+    this.sustainedRelease = Math.exp(-1 / (sampleRate * 0.25));
+    this.transientAttack = Math.exp(-1 / (sampleRate * 0.003));
+    this.transientRelease = Math.exp(-1 / (sampleRate * 0.12));
+    this.reductionRelease = Math.exp(-1 / (sampleRate * 0.25));
   }
 
   process(inputs, outputs) {
@@ -39,16 +48,37 @@ class LoudnessReducer extends AudioWorkletProcessor {
       const levelReduction = levelDb > -10.5
         ? Math.min(10.5, Math.max(0, (levelDb - this.baselineDb - 6) * 3.5))
         : 0;
+      if (levelReduction >= 3) {
+        this.qualifyingSamples++;
+        if (this.qualifyingSamples >= this.qualifyFor) {
+          this.heldReductionDb = Math.max(this.heldReductionDb, levelReduction);
+          this.holdSamples = this.holdFor;
+        }
+      } else {
+        this.qualifyingSamples = 0;
+      }
+      if (this.holdSamples > 0) {
+        this.holdSamples--;
+      } else {
+        this.heldReductionDb *= this.reductionRelease;
+      }
       const peakDb = 20 * Math.log10(Math.max(this.peakEnvelope, 1e-5));
-      const peakReduction = Math.min(6, Math.max(0, (peakDb + 3) * 3));
-      const reductionDb = Math.max(levelReduction, peakReduction);
-      const targetGain = 10 ** (-reductionDb / 20);
-      const gainCoefficient = targetGain < this.gain ? this.gainAttack : this.gainRelease;
-      this.gain = gainCoefficient * this.gain + (1 - gainCoefficient) * targetGain;
+      const peakReduction = Math.min(8, Math.max(0, (peakDb + 0.9) * 20));
+      const sustainedTarget = 10 ** (-this.heldReductionDb / 20);
+      const transientTarget = 10 ** (-peakReduction / 20);
+      const sustainedCoefficient = sustainedTarget < this.sustainedGain
+        ? this.sustainedAttack : this.sustainedRelease;
+      const transientCoefficient = transientTarget < this.transientGain
+        ? this.transientAttack : this.transientRelease;
+      this.sustainedGain = sustainedCoefficient * this.sustainedGain
+        + (1 - sustainedCoefficient) * sustainedTarget;
+      this.transientGain = transientCoefficient * this.transientGain
+        + (1 - transientCoefficient) * transientTarget;
+      const gain = Math.min(this.sustainedGain, this.transientGain);
 
       for (let channel = 0; channel < output.length; channel++) {
         output[channel][frame] = (original[Math.min(channel, original.length - 1)]?.[frame] || 0)
-          * this.gain * Math.min(1, 0.8 / Math.max(peak, 1e-5));
+          * gain * Math.min(1, 0.9 / Math.max(peak, 1e-5));
       }
     }
     return true;
