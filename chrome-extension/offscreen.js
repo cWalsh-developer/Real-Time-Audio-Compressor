@@ -1,4 +1,12 @@
 let activeCapture;
+const COMPRESSION = Object.freeze({
+  threshold: -30,
+  knee: 6,
+  ratio: 6,
+  attack: 0.005,
+  release: 0.3,
+  outputGain: 0.3,
+});
 
 async function stopCapture(tabId) {
   if (!activeCapture || (tabId !== undefined && activeCapture.tabId !== tabId)) return;
@@ -22,13 +30,13 @@ async function startCapture(tabId, streamId) {
     const dry = context.createGain();
     const wet = context.createGain();
     const compressor = context.createDynamicsCompressor();
-    compressor.threshold.value = -20;
-    compressor.knee.value = 12;
-    compressor.ratio.value = 2.5;
-    compressor.attack.value = 0.01;
-    compressor.release.value = 0.25;
+    compressor.threshold.value = COMPRESSION.threshold;
+    compressor.knee.value = COMPRESSION.knee;
+    compressor.ratio.value = COMPRESSION.ratio;
+    compressor.attack.value = COMPRESSION.attack;
+    compressor.release.value = COMPRESSION.release;
     dry.gain.value = 0;
-    wet.gain.value = 0.9;
+    wet.gain.value = COMPRESSION.outputGain;
     const analyser = context.createAnalyser();
     analyser.fftSize = 2048;
     source.connect(dry);
@@ -63,7 +71,7 @@ function toggleProcessing(tabId) {
   const capture = activeCapture;
   capture.processed = !capture.processed;
   const now = capture.context.currentTime;
-  for (const [gain, target] of [[capture.dry.gain, capture.processed ? 0 : 1], [capture.wet.gain, capture.processed ? 0.9 : 0]]) {
+  for (const [gain, target] of [[capture.dry.gain, capture.processed ? 0 : 1], [capture.wet.gain, capture.processed ? COMPRESSION.outputGain : 0]]) {
     gain.cancelScheduledValues(now);
     gain.setTargetAtTime(target, now, 0.02);
   }
