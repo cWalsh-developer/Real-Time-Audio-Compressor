@@ -93,12 +93,35 @@ can affect it. Here it is 3.24 dB lower than the known delayed speech input,
 with 0.9574 correlation. This fails the goal that dialogue stay perceptually
 unchanged during loud music.
 
+As a quality reference, the existing BandIt v2 cinematic separator was run on
+the same two inputs with a fixed 6 dB reduction of its music/effects estimates.
+It is closer to the target, but much too slow for streaming:
+
+| Isolated preview | Music-only level change | Speech contribution change | Correlation | Inference for each 12 s input |
+| --- | ---: | ---: | ---: | ---: |
+| DeepFilterNet3 residual gate, Chromium CPU | -5.73 dB | -3.24 dB | 0.9574 | 0.98-1.05 s offline render |
+| BandIt v2 cinematic stems, RTX 5090 | -6.00 dB | -0.71 dB | 0.9812 | 17.9 s |
+
+Neither figure measures uninterrupted browser playback. BandIt's multi-second
+internal chunks make its end-to-end delay unacceptable even if inference were
+faster. It establishes a useful quality reference for the next causal model
+rather than an extension implementation.
+
 Reproduce with these local clips (generated WAVs remain ignored):
 
 ```powershell
 python evaluation/dfn_overlap_check.py prepare audio/separation/tos_speech_24_36.wav audio/eval/cycles2015_original.wav audio/separation/dfn_synthetic
 python evaluation/dfn_browser_probe.py --preview-only --output-dir audio/separation/dfn_synthetic audio/separation/dfn_synthetic/music.wav audio/separation/dfn_synthetic/mixture.wav
 python evaluation/dfn_overlap_check.py analyze audio/separation/dfn_synthetic
+```
+
+To reproduce the offline quality reference after installing the optional
+BandIt environment described in `separation-trial.md`:
+
+```powershell
+models/separation-venv/Scripts/python.exe evaluation/separation_trial.py audio/separation/dfn_synthetic/music.wav audio/separation/bandit_synthetic_music --duration 12 --reduction-db 6 --device cuda
+models/separation-venv/Scripts/python.exe evaluation/separation_trial.py audio/separation/dfn_synthetic/mixture.wav audio/separation/bandit_synthetic_mixture --duration 12 --reduction-db 6 --device cuda
+python evaluation/dfn_overlap_check.py analyze audio/separation/dfn_synthetic --delay-samples 0 --music-preview audio/separation/bandit_synthetic_music/reduced_preview.wav --mixture-preview audio/separation/bandit_synthetic_mixture/reduced_preview.wav
 ```
 
 The direct and residual-gated variants therefore remain evaluation tools, not
