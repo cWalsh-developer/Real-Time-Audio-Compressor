@@ -1,0 +1,52 @@
+"""Deterministic short-window gain planning and application."""
+
+import numpy as np
+
+
+MODES = {
+    "cinema": (-32.0, -14.0, 1.0, -2.0),
+    "balanced": (-32.0, -18.0, 4.0, -8.0),
+    "night": (-35.0, -23.0, 8.0, -14.0),
+}
+
+
+def process_audio(audio: np.ndarray, sample_rate: int, mode: str) -> np.ndarray:
+    """Apply one shared, smoothly varying gain to mono or multichannel audio.
+
+    Input and output are floating-point samples in the [-1, 1] range. This
+    baseline uses RMS dBFS, not perceptual LUFS or semantic classification.
+    """
+    if mode not in MODES:
+        raise ValueError(f"Unknown mode: {mode}")
+    if sample_rate <= 0 or audio.ndim not in (1, 2):
+        raise ValueError("Expected mono or multichannel audio and a positive sample rate")
+    if not np.all(np.isfinite(audio)):
+        raise ValueError("Audio contains non-finite samples")
+    if len(audio) == 0:
+        return audio.astype(np.float32, copy=True)
+
+    window = max(1, round(sample_rate * 0.1))
+    frame_count = (len(audio) + window - 1) // window
+    levels = np.empty(frame_count)
+    for index in range(frame_count):
+        chunk = audio[index * window:(index + 1) * window]
+        levels[index] = 20 * np.log10(max(np.sqrt(np.mean(np.square(chunk, dtype=np.float64))), 1e-8))
+
+    quiet_db, loud_db, quiet_gain, loud_gain = MODES[mode]
+    gain_db = np.interp(levels, [quiet_db, loud_db], [quiet_gain, loud_gain])
+    # Symmetric smoothing sees an approaching loud event before it happens.
+    radius = 5
+    offsets = np.arange(-radius, radius + 1)
+    kernel = np.exp(-0.5 * (offsets / 2.0) ** 2)
+    kernel /= kernel.sum()
+    padded = np.pad(gain_db, (radius, radius), mode="edge")
+    smooth = np.convolve(padded, kernel, mode="valid")
+    frame_centers = np.arange(frame_count) * window + window / 2
+    per_sample_db = np.interp(np.arange(len(audio)), frame_centers, smooth)
+    gain = 10 ** (per_sample_db / 20)
+    result = audio.astype(np.float64) * (gain[:, None] if audio.ndim == 2 else gain)
+    ceiling = 10 ** (-1 / 20)
+    peak = np.max(np.abs(result))
+    if peak > ceiling:
+        result *= ceiling / peak
+    return result.astype(np.float32)

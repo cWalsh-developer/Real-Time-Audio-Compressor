@@ -1,0 +1,9 @@
+.venv/
+.vscode/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+*.wav
+*.mkv
+*.mp4
+!tests/fixtures/*.wav
