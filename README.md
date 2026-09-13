@@ -35,6 +35,18 @@ The processor uses the same gain for all channels, smooths the gain curve with o
 
 WAV processing uses two passes: one scans 100 ms frame levels and peaks, then the other writes samples in chunks. Memory use is bounded by the chunk size plus the compact frame-level gain plan, so a full soundtrack does not need to be loaded at once.
 
+## Rolling look-ahead prototype
+
+`RollingProcessor` in `adaptive_audio.rolling` accepts one 100 ms mono or multichannel PCM block at a time. It holds a configurable future buffer (2 seconds by default) plus five prior frame measurements, then emits each processed block. It does not need the whole audio file or an end-of-file signal before starting. Call `flush()` once when the stream ends to emit the final buffered blocks. The caller controls real-time input and playback pacing.
+
+The WAV driver simulates a continuous input stream and reports processing speed:
+
+```powershell
+adaptive-audio-rolling audio/tos_full_original.wav --mode balanced --lookahead 2 --output audio/tos_full_balanced_rolling.wav
+```
+
+The 2-second setting delays output by 2 seconds of audio while allowing the existing gain smoothing to see approaching loud events. On this machine, the 734.12-second *Tears of Steel* soundtrack processed in 1.66 seconds (443× audio duration), and the resulting WAV matched the offline Balanced v3 WAV byte-for-byte. That speed measures the file-driven audio computation, **not** sound-device capture, playback, or video synchronization. Those I/O and timing pieces are the next stage; this prototype currently produces audio only and uses the deterministic level-based mode without streaming classifier inference.
+
 ## Tears of Steel test clip
 
 The source MOV at `audio/ToS-4k-1920.mov/ToS-4k-1920.mov` is kept outside Git. A 60-second excerpt from 06:30–07:30 has been extracted and processed locally:

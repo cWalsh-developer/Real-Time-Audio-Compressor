@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "adaptive-audio"
 version = "0.1.0"
-description = "Offline adaptive audio baseline for film and TV"
+description = "Adaptive audio processing and rolling look-ahead prototype"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24", "imageio-ffmpeg>=0.6"]
 
@@ -16,6 +16,7 @@ ai = ["onnxruntime>=1.20"]
 adaptive-audio = "adaptive_audio.cli:main"
 adaptive-audio-report = "adaptive_audio.report:main"
 adaptive-audio-classify = "adaptive_audio.classify_cli:main"
+adaptive-audio-rolling = "adaptive_audio.rolling_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
