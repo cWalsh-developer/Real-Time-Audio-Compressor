@@ -43,3 +43,18 @@ def test_isolated_peak_does_not_turn_down_distant_quiet_audio():
     result = process_audio(audio, rate, "night")
     assert np.mean(np.abs(result[1000:4000])) > 0.02
     assert np.max(np.abs(result)) <= 10 ** (-1 / 20) + 1e-6
+
+
+def test_night_keeps_quiet_passage_close_to_balanced_and_reduces_loud_passage():
+    rate = 8000
+    time = np.arange(rate) / rate
+    tone = np.sin(2 * np.pi * 440 * time)
+    audio = np.concatenate([0.04 * tone, 0.4 * tone]).astype(np.float32)
+    balanced = process_audio(audio, rate, "balanced")
+    night = process_audio(audio, rate, "night")
+    def level(x):
+        return 20 * np.log10(np.sqrt(np.mean(x.astype(float) ** 2)))
+    quiet_difference = level(night[2000:6000]) - level(balanced[2000:6000])
+    loud_difference = level(night[10000:14000]) - level(balanced[10000:14000])
+    assert quiet_difference > -2
+    assert loud_difference < -2
