@@ -1,6 +1,6 @@
 # Adaptive Audio MVP
 
-A runnable offline baseline for reducing uncomfortable loudness changes while retaining some quiet/loud contrast. It processes **uncompressed 16-bit PCM WAV** files in Cinema, Balanced, or Night mode. This first stage uses short-window RMS levels and deterministic gain planning; it does **not** yet identify dialogue, music, or action, or measure LUFS.
+A runnable offline baseline for reducing uncomfortable loudness changes while retaining some quiet/loud contrast. It processes **MOV files or uncompressed 16-bit PCM WAV** files in Cinema, Balanced, or Night mode. It uses short-window RMS levels and deterministic gain planning; it does **not** yet identify dialogue, music, or action, or measure LUFS.
 
 ## Set up
 
@@ -17,16 +17,19 @@ Run it:
 ```powershell
 adaptive-audio input.wav --mode balanced
 adaptive-audio input.wav --mode night --output output.wav
+adaptive-audio input.mov --mode balanced --output output.mov
 ```
 
-The default output is `input_balanced.wav` (or the selected mode). The original is never overwritten. For a quick test from a video file, install FFmpeg separately and extract a PCM WAV:
+The default output is `input_balanced.wav` or `input_balanced.mov` (depending on the input). The original is never overwritten. MOV processing uses a bundled FFmpeg binary: it extracts the **first audio track** to stereo PCM, processes it, then copies the original video stream and encodes the new audio as AAC. It copies subtitle streams when present. Other audio tracks are not included in the output.
+
+To extract audio manually with a separate FFmpeg installation:
 
 ```powershell
 ffmpeg -i movie.mkv -map 0:a:0 -ac 2 -ar 48000 -c:a pcm_s16le movie.wav
 adaptive-audio movie.wav --mode balanced
 ```
 
-This version outputs audio only. It does not remux a processed track into a video file. It uses the same gain for all channels, smooths the gain curve with offline look-ahead, and limits peaks locally to a -1 dBFS sample-peak ceiling. The ceiling is **sample peak**, not true peak; check the output with a suitable meter before using it for critical listening.
+The processor uses the same gain for all channels, smooths the gain curve with offline look-ahead, and limits peaks locally to a -1 dBFS sample-peak ceiling. The ceiling is **sample peak**, not true peak; check the output with a suitable meter before using it for critical listening.
 
 WAV processing uses two passes: one scans 100 ms frame levels and peaks, then the other writes samples in chunks. Memory use is bounded by the chunk size plus the compact frame-level gain plan, so a full soundtrack does not need to be loaded at once.
 
@@ -40,6 +43,7 @@ The source MOV at `audio/ToS-4k-1920.mov/ToS-4k-1920.mov` is kept outside Git. A
 - `audio/tos_excerpt_night_v2.wav` (revised Night settings with less dialogue reduction)
 
 The full soundtrack has also been extracted to `audio/tos_full_original.wav` and processed in Balanced mode as `audio/tos_full_balanced.wav`. These local WAV files are ignored by Git.
+The full MOV was processed directly as `audio/ToS-4k-1920_balanced.mov`; its video stream was verified byte-for-byte against the source stream.
 
 Compare the original, Balanced, and either Night version at the **same player volume**. Listen for clear dialogue, the impact of louder events, pumping, and audible distortion. To recreate the excerpt with FFmpeg installed:
 

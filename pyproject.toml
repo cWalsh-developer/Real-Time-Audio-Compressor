@@ -7,7 +7,7 @@ name = "adaptive-audio"
 version = "0.1.0"
 description = "Offline adaptive audio baseline for film and TV"
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.24"]
+dependencies = ["numpy>=1.24", "imageio-ffmpeg>=0.6"]
 
 [project.scripts]
 adaptive-audio = "adaptive_audio.cli:main"
