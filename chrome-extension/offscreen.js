@@ -26,10 +26,15 @@ async function startCapture(tabId, streamId) {
   });
   const context = new AudioContext({latencyHint: "interactive"});
   try {
+    await context.audioWorklet.addModule("loudness-reducer.js");
     const source = context.createMediaStreamSource(stream);
     const dry = context.createGain();
     const wet = context.createGain();
     const compressor = context.createDynamicsCompressor();
+    const loudnessReducer = new AudioWorkletNode(context, "loudness-reducer", {
+      numberOfInputs: 2,
+      outputChannelCount: [2],
+    });
     compressor.threshold.value = COMPRESSION.threshold;
     compressor.knee.value = COMPRESSION.knee;
     compressor.ratio.value = COMPRESSION.ratio;
@@ -41,8 +46,10 @@ async function startCapture(tabId, streamId) {
     analyser.fftSize = 2048;
     source.connect(dry);
     source.connect(compressor);
+    source.connect(loudnessReducer, 0, 1);
     dry.connect(analyser);
-    compressor.connect(wet);
+    compressor.connect(loudnessReducer, 0, 0);
+    loudnessReducer.connect(wet);
     wet.connect(analyser);
     analyser.connect(context.destination);
     await context.resume();

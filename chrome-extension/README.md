@@ -1,6 +1,6 @@
 # Chrome live-audio prototype
 
-This unpacked Manifest V3 extension captures a tab's audio, applies stronger live dynamic-range compression, and replays it to the default speaker output. It does not record, upload, classify, or buffer the audio. The live effect is a Web Audio compressor, **not** the Python Balanced curve or the AI classifier. A green `CMP` badge means compressed audio is playing; green `AUD` means original audio is playing; amber `0` means capture is active but no audio was measured; `ERR` means capture failed.
+This unpacked Manifest V3 extension captures a tab's audio, applies stronger live dynamic-range compression, and replays it to the default speaker output. It does not record, upload, classify, or use a multi-second buffer. The live effect combines a Web Audio compressor with a level-sensitive AudioWorklet; it is **not** the Python Balanced curve or the AI classifier. A green `CMP` badge means compressed audio is playing; green `AUD` means original audio is playing; amber `0` means capture is active but no audio was measured; `ERR` means capture failed.
 
 ## Load and test
 
@@ -13,6 +13,6 @@ Chrome may prevent a video player from entering fullscreen **after** tab capture
 
 Chrome requires a user click before tab capture. When a tab is captured, Chrome stops its normal audio output, so the extension explicitly routes captured audio back to the speakers. The extension uses an offscreen document to keep the audio graph running after the click. It needs Chrome 116 or newer.
 
-The compressor uses a -24 dBFS threshold, 6 dB knee, 12:1 ratio, 5 ms attack, 300 ms release, and output gain calibrated to keep typical dialogue slightly above its original volume while reducing much louder passages. These are listening-test settings; it has no dialogue recognition or LUFS target. Please compare dialogue, loud effects, pumping, and lip-sync on the same title and speaker volume. The existing 2-second Python rolling buffer cannot be inserted into this audio-only path without making sound late relative to video.
+The compressor uses a -24 dBFS threshold, 6 dB knee, 12:1 ratio, 5 ms attack, 300 ms release, and output gain calibrated to keep typical dialogue slightly above its original volume. A second stage reduces sustained passages above about -17 dBFS by up to another 4 dB. These are listening-test settings; it has no dialogue recognition or LUFS target, so a loud voice can also trigger the extra reduction. Please compare dialogue, loud effects, pumping, and lip-sync on the same title and speaker volume. The existing 2-second Python rolling buffer cannot be inserted into this audio-only path without making sound late relative to video.
 
 Sources: [Chrome tabCapture](https://developer.chrome.com/docs/extensions/reference/api/tabCapture), [Chrome offscreen documents](https://developer.chrome.com/docs/extensions/reference/api/offscreen).
