@@ -113,3 +113,7 @@ is needed for a meaningful quality comparison. Availability of a browser SDK
 and preservation of cinematic dialogue still need verification; the vendor's
 latency claims do not establish our quality target. No account, trial signup,
 purchase, or vendor contact has been made.
+
+The user subsequently approved evaluating a licensed local model. See
+`rapidly-trial.md` for the completed native demo benchmarks, the missing trial
+key and browser SDK requirements, and a prepared access request.
