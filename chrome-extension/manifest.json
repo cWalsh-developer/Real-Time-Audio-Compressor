@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Adaptive Audio Capture Probe",
+  "version": "0.1.0",
+  "description": "Check whether a Chrome tab supplies audio that can be processed and replayed.",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "tabCapture", "offscreen"],
+  "background": {"service_worker": "background.js"},
+  "action": {"default_title": "Click to start or stop tab audio capture"}
+}
