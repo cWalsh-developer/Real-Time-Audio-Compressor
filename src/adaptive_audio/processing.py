@@ -28,9 +28,11 @@ def process_audio(audio: np.ndarray, sample_rate: int, mode: str) -> np.ndarray:
     window = max(1, round(sample_rate * 0.1))
     frame_count = (len(audio) + window - 1) // window
     levels = np.empty(frame_count)
+    peaks = np.empty(frame_count)
     for index in range(frame_count):
         chunk = audio[index * window:(index + 1) * window]
         levels[index] = 20 * np.log10(max(np.sqrt(np.mean(np.square(chunk, dtype=np.float64))), 1e-8))
+        peaks[index] = np.max(np.abs(chunk))
 
     quiet_db, loud_db, quiet_gain, loud_gain = MODES[mode]
     gain_db = np.interp(levels, [quiet_db, loud_db], [quiet_gain, loud_gain])
@@ -41,12 +43,15 @@ def process_audio(audio: np.ndarray, sample_rate: int, mode: str) -> np.ndarray:
     kernel /= kernel.sum()
     padded = np.pad(gain_db, (radius, radius), mode="edge")
     smooth = np.convolve(padded, kernel, mode="valid")
+    ceiling = 10 ** (-1 / 20)
+    peak_cap_db = 20 * np.log10(ceiling / np.maximum(peaks, 1e-8))
+    smooth = np.minimum(smooth, peak_cap_db)
     frame_centers = np.arange(frame_count) * window + window / 2
     per_sample_db = np.interp(np.arange(len(audio)), frame_centers, smooth)
     gain = 10 ** (per_sample_db / 20)
     result = audio.astype(np.float64) * (gain[:, None] if audio.ndim == 2 else gain)
-    ceiling = 10 ** (-1 / 20)
-    peak = np.max(np.abs(result))
-    if peak > ceiling:
-        result *= ceiling / peak
+    # Catch boundary samples where interpolated gain exceeds a frame's cap.
+    sample_peaks = np.max(np.abs(result), axis=1) if audio.ndim == 2 else np.abs(result)
+    final_scale = np.minimum(1.0, ceiling / np.maximum(sample_peaks, 1e-8))
+    result *= final_scale[:, None] if audio.ndim == 2 else final_scale
     return result.astype(np.float32)

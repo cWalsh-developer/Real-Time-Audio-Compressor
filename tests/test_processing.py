@@ -34,3 +34,12 @@ def test_stereo_channels_keep_same_gain_and_peak_ceiling():
     result = process_audio(audio, 8000, "night")
     assert np.max(np.abs(result)) <= 10 ** (-1 / 20) + 1e-6
     np.testing.assert_allclose(result[:, 1], result[:, 0] * 0.5)
+
+
+def test_isolated_peak_does_not_turn_down_distant_quiet_audio():
+    rate = 8000
+    audio = np.full(rate * 3, 0.01, dtype=np.float32)
+    audio[-100] = 1.0
+    result = process_audio(audio, rate, "night")
+    assert np.mean(np.abs(result[1000:4000])) > 0.02
+    assert np.max(np.abs(result)) <= 10 ** (-1 / 20) + 1e-6
