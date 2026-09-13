@@ -1,6 +1,6 @@
 # Adaptive Audio MVP
 
-A runnable offline baseline for reducing uncomfortable loudness changes while retaining some quiet/loud contrast. It processes **MOV files or uncompressed 16-bit PCM WAV** files in Cinema, Balanced, or Night mode. It uses short-window RMS levels and deterministic gain planning; it does **not** yet identify dialogue, music, or action, or measure LUFS.
+A runnable offline processor for reducing uncomfortable loudness changes while retaining some quiet/loud contrast. It accepts **MOV files or uncompressed 16-bit PCM WAV** files in Cinema, Balanced, or Night mode. By default it uses short-window RMS levels and deterministic gain planning. An optional pretrained classifier can inform the gain plan. It does not yet measure LUFS.
 
 ## Set up
 
@@ -18,6 +18,7 @@ Run it:
 adaptive-audio input.wav --mode balanced
 adaptive-audio input.wav --mode night --output output.wav
 adaptive-audio input.mov --mode balanced --output output.mov
+adaptive-audio input.mov --mode balanced --ai --output output_ai.mov
 ```
 
 The default output is `input_balanced.wav` or `input_balanced.mov` (depending on the input). The original is never overwritten. MOV processing uses a bundled FFmpeg binary: it extracts the **first audio track** to stereo PCM, processes it, then copies the original video stream and encodes the new audio as AAC. It copies subtitle streams when present. Other audio tracks are not included in the output.
@@ -55,7 +56,7 @@ adaptive-audio audio/tos_excerpt_original.wav --mode night --output audio/tos_ex
 
 ## Modes
 
-Cinema makes small changes, Balanced gives quieter passages a gentle lift and reduces loud passages, and Night applies the strongest change. Mode values are provisional and should be tuned against real listening samples. Since this stage has no classifier, a quiet sound effect can be raised just like quiet dialogue. That is the reason for the next stage.
+Cinema makes small changes, Balanced gives quieter passages a gentle lift and reduces loud passages, and Night applies the strongest change. Mode values are provisional and should be tuned against real listening samples. Without `--ai` or `--labels`, a quiet sound effect can be raised just like quiet dialogue.
 
 ## Evaluation
 
@@ -70,7 +71,7 @@ adaptive-audio-report audio/tos_excerpt_original.wav audio/tos_excerpt_night_v2.
 
 The report gives duration, sample peak, and the 10th, 50th, and 90th percentiles of 100 ms RMS levels. Its level range is P90 minus P10. These are repeatable **dBFS** measurements, not LUFS or standardized loudness range. They cannot measure dialogue intelligibility, pumping, or listening comfort; use the same player volume for those comparisons and record observations alongside the numbers.
 
-## Next stage: semantic classifier
+## Optional semantic classifier
 
 The classifier boundary is defined in `adaptive_audio.classification`: it returns time-stamped scores for `speech`, `music`, `action`, and `other`. `ManualClassifier` reads known labels from JSON; `evaluation/example_labels.json` shows the format. An optional [YAMNet ONNX model](https://huggingface.co/audiomagic/yamnet-onnx) adapter can generate scores from WAV audio:
 
@@ -79,7 +80,11 @@ python -m pip install -e ".[ai]"
 adaptive-audio-classify audio/tos_excerpt_original.wav --output audio/tos_excerpt.labels.json
 ```
 
-The first run downloads pinned model files (about 16 MB) to `models/yamnet/` and verifies their SHA-256 hashes. Model files and generated labels are kept out of Git. The adapter uses FFmpeg to downmix and resample to the 16 kHz mono input expected by [Google's YAMNet](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet). It groups selected AudioSet classes into the four project categories; these normalized category scores are **heuristic, not calibrated probabilities**. Model windows overlap. Classification is not yet connected to gain processing. The next stage will use these scores with measured levels and compare the result with the existing baseline on the same scenes.
+The first run downloads pinned model files (about 16 MB) to `models/yamnet/` and verifies their SHA-256 hashes. Model files and generated labels are kept out of Git. The adapter uses FFmpeg to downmix and resample to the 16 kHz mono input expected by [Google's YAMNet](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet). It groups selected AudioSet classes into the four project categories; these normalized category scores are **heuristic, not calibrated probabilities**. Model windows overlap.
+
+Use `--ai` on WAV or MOV input to classify and process in one command, or pass existing scores with `--labels path/to/labels.json`. Without either option, the established level-only processing stays the same. The content-aware decision adds up to 3 dB of speech protection and 2 dB of action reduction before gain smoothing and peak limiting. Music currently receives the baseline treatment. The model-informed output is experimental and should be compared by ear at the same volume against the established Balanced and Night outputs.
+
+For Tears of Steel, `audio/ToS-4k-1920_balanced_ai.mov` is a local full-film AI-assisted comparison. Its duration and copied video stream were verified against the source.
 
 ## Tests
 

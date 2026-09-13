@@ -7,6 +7,8 @@ from pathlib import Path
 import imageio_ffmpeg
 
 from .streaming import process_wav
+from .classification import EventScores
+from .yamnet import classify_wav, download_model
 
 
 def _run_ffmpeg(arguments: list[str]) -> None:
@@ -16,7 +18,8 @@ def _run_ffmpeg(arguments: list[str]) -> None:
         raise ValueError(result.stderr.strip() or "FFmpeg failed")
 
 
-def process_video(source: Path, target: Path, mode: str) -> None:
+def process_video(source: Path, target: Path, mode: str, labels: list[EventScores] | None = None,
+                  use_ai: bool = False, model_directory: Path = Path("models/yamnet")) -> None:
     """Replace the first audio track while copying the original video stream."""
     if source.resolve() == target.resolve():
         raise ValueError("Output must differ from input")
@@ -24,7 +27,10 @@ def process_video(source: Path, target: Path, mode: str) -> None:
         original = Path(directory) / "original.wav"
         processed = Path(directory) / "processed.wav"
         _run_ffmpeg(["-i", str(source), "-map", "0:a:0", "-ac", "2", "-c:a", "pcm_s16le", str(original)])
-        process_wav(original, processed, mode)
+        if use_ai:
+            download_model(model_directory)
+            labels = classify_wav(original, model_directory)
+        process_wav(original, processed, mode, labels=labels)
         _run_ffmpeg([
             "-i", str(source), "-i", str(processed), "-map", "0:v:0", "-map", "1:a:0",
             "-map", "0:s?", "-c:v", "copy", "-c:a", "aac", "-b:a", "256k",

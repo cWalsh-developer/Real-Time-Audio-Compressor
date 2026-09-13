@@ -6,9 +6,12 @@ from pathlib import Path
 import numpy as np
 
 from .processing import MODES, apply_gain, frame_measurements, plan_gain
+from .classification import EventScores
+from .content import semantic_adjustments
 
 
-def process_wav(source: Path, target: Path, mode: str, chunk_frames: int = 65536) -> None:
+def process_wav(source: Path, target: Path, mode: str, chunk_frames: int = 65536,
+                labels: list[EventScores] | None = None) -> None:
     """Scan frame levels, then render audio in chunks with one full-file gain plan."""
     if mode not in MODES:
         raise ValueError(f"Unknown mode: {mode}")
@@ -31,7 +34,8 @@ def process_wav(source: Path, target: Path, mode: str, chunk_frames: int = 65536
             level, peak = frame_measurements(frame)
             levels.append(level)
             peaks.append(peak)
-        gain_db = plan_gain(np.asarray(levels), np.asarray(peaks), mode)
+        adjustment = semantic_adjustments(labels, len(levels), rate) if labels is not None else None
+        gain_db = plan_gain(np.asarray(levels), np.asarray(peaks), mode, adjustment)
         wav.rewind()
         with wave.open(str(target), "wb") as output:
             output.setnchannels(channels)

@@ -17,13 +17,17 @@ def frame_measurements(audio: np.ndarray) -> tuple[float, float]:
     return level, peak
 
 
-def plan_gain(levels: np.ndarray, peaks: np.ndarray, mode: str) -> np.ndarray:
+def plan_gain(levels: np.ndarray, peaks: np.ndarray, mode: str, adjustment_db: np.ndarray | None = None) -> np.ndarray:
     if mode not in MODES:
         raise ValueError(f"Unknown mode: {mode}")
     if len(levels) == 0:
         return np.empty(0)
     quiet_db, loud_db, quiet_gain, loud_gain = MODES[mode]
     gain_db = np.interp(levels, [quiet_db, loud_db], [quiet_gain, loud_gain])
+    if adjustment_db is not None:
+        if adjustment_db.shape != gain_db.shape:
+            raise ValueError("Semantic adjustment must match analysis frames")
+        gain_db += adjustment_db
     radius = 5
     offsets = np.arange(-radius, radius + 1)
     kernel = np.exp(-0.5 * (offsets / 2.0) ** 2)
