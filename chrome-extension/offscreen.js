@@ -5,7 +5,7 @@ const COMPRESSION = Object.freeze({
   ratio: 6,
   attack: 0.005,
   release: 0.3,
-  outputGain: 0.54,
+  outputGain: 0.65,
 });
 
 async function stopCapture(tabId) {

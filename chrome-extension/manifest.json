@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Adaptive Audio Capture Probe",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Compress a Chrome tab's audio live, with an original-audio comparison switch.",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "tabCapture", "offscreen"],
