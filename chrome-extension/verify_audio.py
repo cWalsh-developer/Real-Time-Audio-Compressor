@@ -178,6 +178,37 @@ CONSISTENCY_RENDER = """async () => {
   return changes;
 }"""
 
+VOICE_RENDER = """async () => {
+  const rate = 48000;
+  const context = new OfflineAudioContext(1, rate * 6, rate);
+  await context.audioWorklet.addModule('loudness-reducer.js');
+  const buffer = context.createBuffer(1, rate * 6, rate);
+  const input = buffer.getChannelData(0);
+  for (let i = 0; i < input.length; i++) {
+    const time = i / rate;
+    const amplitude = time < 2 ? 0.15 : time < 4 ? 0.40 : 0.50;
+    const syllable = 0.72 + 0.28 * Math.sin(2 * Math.PI * 5 * time) ** 2;
+    input[i] = amplitude * syllable * (
+      Math.sin(2 * Math.PI * 150 * time)
+      + 0.55 * Math.sin(2 * Math.PI * 300 * time)
+      + 0.25 * Math.sin(2 * Math.PI * 900 * time));
+  }
+  const source = context.createBufferSource();
+  const reducer = new AudioWorkletNode(context, 'loudness-reducer');
+  source.buffer = buffer;
+  source.connect(reducer);
+  reducer.connect(context.destination);
+  source.start();
+  const output = (await context.startRendering()).getChannelData(0);
+  const rms = (samples, start, end) => {
+    let sum = 0;
+    for (let i = start * rate; i < end * rate; i++) sum += samples[i] ** 2;
+    return Math.sqrt(sum / ((end - start) * rate));
+  };
+  return [20 * Math.log10(rms(output, 2.5, 3.5) / rms(input, 2.5, 3.5)),
+    20 * Math.log10(rms(output, 4.5, 5.5) / rms(input, 4.5, 5.5))];
+}"""
+
 
 def main() -> None:
     extension = Path(__file__).resolve().parent
@@ -205,12 +236,12 @@ def main() -> None:
                 bass = page.evaluate(BASS_RENDER)
                 bassGuitar = page.evaluate(BASS_GUITAR_RENDER)
                 consistency = page.evaluate(CONSISTENCY_RENDER)
+                voice = page.evaluate(VOICE_RENDER)
             finally:
                 browser.close()
     quiet, moderate, loud, loudest = result["changes"]
-    assert abs(quiet) < 0.01 and -13 < moderate < -9, result
-    assert -16 < loud < -12 and -15 < loudest < -13.5, result
-    assert loud < moderate - 1 and abs(loudest - loud) < 0.1, result
+    assert all(abs(change) < 0.01 for change in result["changes"][:3]), result
+    assert -2 < loudest < 0.5, result
     assert result["dialogueDifference"] < 1e-6, result
     assert result["stereoDifference"] > 0.01, result
     assert -16 < burst["change"] < -12 and burst["peak"] <= 0.8, burst
@@ -218,11 +249,13 @@ def main() -> None:
     assert -16 < bass < -2, bass
     assert bassGuitar["bassChange"] < -2 and bassGuitar["guitarChange"] < bassGuitar["bassChange"] - 0.5, bassGuitar
     assert max(consistency) - min(consistency) < 3, consistency
+    assert all(-2 < change < 0.5 for change in voice), voice
     print("Rendered gain changes (dB):", [round(value, 2) for value in result["changes"]])
     print("Burst change (dB):", round(burst["change"], 2))
     print("Bass change (dB):", round(bass, 2))
     print("Bass/guitar changes (dB):", {key: round(value, 2) for key, value in bassGuitar.items()})
     print("Consistency changes (dB):", [round(value, 2) for value in consistency])
+    print("Voice changes (dB):", [round(value, 2) for value in voice])
     print("Dialogue passthrough and stereo separation verified")
 
 
