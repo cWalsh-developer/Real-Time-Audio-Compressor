@@ -2,7 +2,7 @@
 
 Streaming algorithm follows Nils L. Westhausen's MIT-licensed DTLN example:
 https://github.com/breizhn/DTLN/blob/1de1f15a8b5b7e1c44905618ff2ef70ca8277fbc/real_time_processing_onnx.py
-See models/dtln/LICENSE (downloaded alongside the model).
+See evaluation/licenses/DTLN.txt for the upstream copyright and MIT licence.
 """
 
 import argparse

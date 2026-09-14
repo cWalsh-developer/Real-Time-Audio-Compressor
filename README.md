@@ -70,11 +70,12 @@ Separation quality matters as much as speed: speech leaking into the estimated b
 | **BandIt v2** | Useful offline quality reference, but the tested processing time and chunking are unsuitable for live extension playback. |
 | **DeepFilterNet3** | Fast in an isolated browser test, but the tested remix reduced dialogue during overlapping music. |
 | **GTCRN** | Fast in a native streaming test, but also reduced dialogue during overlapping music. |
+| **DTLN** | Downloadable streaming ONNX models; fast natively and close to the original on isolated speech, but the tested remix still lost dialogue during music. |
 | **Rapidly SDK** | The native demo showed promising throughput. Unwatermarked quality, stereo preservation, and browser SDK integration still need evaluation. |
 
 No licensed model has been selected, and the current extension does not depend on one. Native processing speed alone does not prove that a model is suitable for Chrome.
 
-See the [offline separation findings](evaluation/separation-findings.md), [browser model findings](evaluation/dfn-browser-findings.md), [streaming model findings](evaluation/causal-separator-findings.md), and [licensed SDK trial](evaluation/rapidly-trial.md) for measurements and reproduction details.
+See the [offline separation findings](evaluation/separation-findings.md), [browser model findings](evaluation/dfn-browser-findings.md), [GTCRN findings](evaluation/causal-separator-findings.md), [DTLN and streaming Denoiser findings](evaluation/dtln-findings.md), and [licensed SDK trial](evaluation/rapidly-trial.md) for measurements and reproduction details.
 
 ## Run the offline tools
 
