@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import math
 
 from playwright.sync_api import sync_playwright
 
@@ -209,6 +210,40 @@ VOICE_RENDER = """async () => {
     20 * Math.log10(rms(output, 4.5, 5.5) / rms(input, 4.5, 5.5))];
 }"""
 
+GRACE_RENDER = """async () => {
+  const rate = 48000;
+  const context = new OfflineAudioContext(1, rate * 6, rate);
+  await context.audioWorklet.addModule('loudness-reducer.js');
+  const buffer = context.createBuffer(1, rate * 6, rate);
+  const input = buffer.getChannelData(0);
+  for (let i = 0; i < input.length; i++) {
+    const time = i / rate;
+    let amplitude = 0.15;
+    if (time >= 2 && time < 2.7) amplitude = 0.7;
+    if (time >= 2.7 && time < 3.3) amplitude = 0.3;
+    if (time >= 3.3 && time < 4.2) amplitude = 0.7;
+    input[i] = amplitude * (Math.sin(2 * Math.PI * 60 * time)
+      + 0.55 * Math.sin(2 * Math.PI * 440 * time));
+  }
+  const source = context.createBufferSource();
+  const reducer = new AudioWorkletNode(context, 'loudness-reducer');
+  source.buffer = buffer;
+  source.connect(reducer);
+  reducer.connect(context.destination);
+  source.start();
+  const output = (await context.startRendering()).getChannelData(0);
+  const rms = (samples, start, end) => {
+    let sum = 0;
+    for (let i = start * rate; i < end * rate; i++) sum += samples[i] ** 2;
+    return Math.sqrt(sum / ((end - start) * rate));
+  };
+  const changes = [];
+  for (const start of [2.4, 2.9, 3.6]) {
+    changes.push(20 * Math.log10(rms(output, start, start + 0.3) / rms(input, start, start + 0.3)));
+  }
+  return changes;
+}"""
+
 
 def main() -> None:
     extension = Path(__file__).resolve().parent
@@ -237,6 +272,7 @@ def main() -> None:
                 bassGuitar = page.evaluate(BASS_GUITAR_RENDER)
                 consistency = page.evaluate(CONSISTENCY_RENDER)
                 voice = page.evaluate(VOICE_RENDER)
+                grace = page.evaluate(GRACE_RENDER)
             finally:
                 browser.close()
     quiet, moderate, loud, loudest = result["changes"]
@@ -250,12 +286,14 @@ def main() -> None:
     assert bassGuitar["bassChange"] < -2 and bassGuitar["guitarChange"] < bassGuitar["bassChange"] - 0.5, bassGuitar
     assert max(consistency) - min(consistency) < 3, consistency
     assert all(-2 < change < 0.5 for change in voice), voice
+    assert all(math.isfinite(change) for change in grace) and max(grace) - min(grace) < 2.5, grace
     print("Rendered gain changes (dB):", [round(value, 2) for value in result["changes"]])
     print("Burst change (dB):", round(burst["change"], 2))
     print("Bass change (dB):", round(bass, 2))
     print("Bass/guitar changes (dB):", {key: round(value, 2) for key, value in bassGuitar.items()})
     print("Consistency changes (dB):", [round(value, 2) for value in consistency])
     print("Voice changes (dB):", [round(value, 2) for value in voice])
+    print("Grace changes (dB):", [round(value, 2) for value in grace])
     print("Dialogue passthrough and stereo separation verified")
 
 

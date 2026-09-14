@@ -17,6 +17,9 @@ class LoudnessReducer extends AudioWorkletProcessor {
     this.upperSmoothing = Math.exp(-1 / (sampleRate * 0.22));
     this.bassProgramSmoothing = Math.exp(-1 / (sampleRate * 0.18));
     this.upperGain = 1;
+    this.reductionHoldDb = 0;
+    this.reductionHoldSamples = 0;
+    this.reductionHoldDuration = Math.round(sampleRate * 0.9);
     this.baselineRise = 1 - Math.exp(-1 / (sampleRate * 5));
     this.baselineFall = 1 - Math.exp(-1 / (sampleRate * 1));
     this.peakRelease = Math.exp(-1 / (sampleRate * 0.08));
@@ -88,9 +91,23 @@ class LoudnessReducer extends AudioWorkletProcessor {
       const upperReduction = this.bassProgram > 0.5 && !speechPresence
         ? Math.min(9, Math.max(0, (upperDb + 15) * 3))
         : 0;
-      const reductionDb = speechPresence
-        ? Math.max(Math.min(1.5, levelReduction), transientReduction)
-        : Math.max(levelReduction, flattenReduction, nightReduction, peakReduction, bassReduction);
+      const requestedReduction = Math.max(levelReduction, flattenReduction, nightReduction, peakReduction, bassReduction);
+      let reductionDb;
+      if (speechPresence) {
+        this.reductionHoldDb = 0;
+        this.reductionHoldSamples = 0;
+        reductionDb = Math.max(Math.min(1.5, levelReduction), transientReduction);
+      } else {
+        if (requestedReduction >= this.reductionHoldDb) {
+          this.reductionHoldDb = requestedReduction;
+          this.reductionHoldSamples = this.reductionHoldDuration;
+        } else if (this.reductionHoldSamples > 0) {
+          this.reductionHoldSamples--;
+        } else {
+          this.reductionHoldDb = requestedReduction;
+        }
+        reductionDb = Math.max(requestedReduction, this.reductionHoldDb);
+      }
       const upperTargetGain = 10 ** (-upperReduction / 20);
       const upperCoefficient = upperTargetGain < this.upperGain ? this.gainAttack : this.upperGainRelease;
       this.upperGain = upperCoefficient * this.upperGain + (1 - upperCoefficient) * upperTargetGain;
