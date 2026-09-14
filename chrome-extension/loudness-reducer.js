@@ -22,6 +22,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
     this.peakRelease = Math.exp(-1 / (sampleRate * 0.08));
     this.gainAttack = Math.exp(-1 / (sampleRate * 0.005));
     this.gainRelease = Math.exp(-1 / (sampleRate * 0.4));
+    this.upperGainRelease = Math.exp(-1 / (sampleRate * 1.2));
   }
 
   process(inputs, outputs) {
@@ -91,7 +92,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
         ? Math.max(Math.min(1.5, levelReduction), transientReduction)
         : Math.max(levelReduction, flattenReduction, nightReduction, peakReduction, bassReduction);
       const upperTargetGain = 10 ** (-upperReduction / 20);
-      const upperCoefficient = upperTargetGain < this.upperGain ? this.gainAttack : this.gainRelease;
+      const upperCoefficient = upperTargetGain < this.upperGain ? this.gainAttack : this.upperGainRelease;
       this.upperGain = upperCoefficient * this.upperGain + (1 - upperCoefficient) * upperTargetGain;
       const targetGain = 10 ** (-reductionDb / 20);
       const gainCoefficient = targetGain < this.gain ? this.gainAttack : this.gainRelease;
