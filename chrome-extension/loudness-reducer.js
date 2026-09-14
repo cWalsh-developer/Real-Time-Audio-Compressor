@@ -5,6 +5,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
     this.bassMeanSquare = 0;
     this.upperMeanSquare = 0;
     this.bassEnvelope = 0;
+    this.upperPeakEnvelope = 0;
     this.bassProgram = 0;
     this.lowpass = [];
     this.baselineDb = -20;
@@ -13,6 +14,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
     this.levelSmoothing = Math.exp(-1 / (sampleRate * 0.03));
     this.bassSmoothing = Math.exp(-1 / (sampleRate * 0.025));
     this.bassRelease = Math.exp(-1 / (sampleRate * 0.06));
+    this.upperPeakRelease = Math.exp(-1 / (sampleRate * 0.12));
     this.bassFilter = 1 - Math.exp(-2 * Math.PI * 140 / sampleRate);
     this.upperSmoothing = Math.exp(-1 / (sampleRate * 0.22));
     this.bassProgramSmoothing = Math.exp(-1 / (sampleRate * 0.18));
@@ -38,6 +40,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
       let bassPower = 0;
       let upperPower = 0;
       let peak = 0;
+      let upperPeak = 0;
       const bassValues = [];
       for (let channelIndex = 0; channelIndex < original.length; channelIndex++) {
         const channel = original[channelIndex];
@@ -48,7 +51,9 @@ class LoudnessReducer extends AudioWorkletProcessor {
         bassValues[channelIndex] = bass;
         power += sample * sample;
         bassPower += bass * bass;
-        upperPower += (sample - bass) ** 2;
+        const upperSample = sample - bass;
+        upperPower += upperSample ** 2;
+        upperPeak = Math.max(upperPeak, Math.abs(upperSample));
         peak = Math.max(peak, Math.abs(sample));
       }
       power /= Math.max(1, original.length);
@@ -57,6 +62,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
       this.bassMeanSquare = this.bassSmoothing * this.bassMeanSquare + (1 - this.bassSmoothing) * bassPower;
       this.upperMeanSquare = this.upperSmoothing * this.upperMeanSquare + (1 - this.upperSmoothing) * upperPower / Math.max(1, original.length);
       this.bassEnvelope = Math.max(Math.sqrt(bassPower), this.bassEnvelope * this.bassRelease);
+      this.upperPeakEnvelope = Math.max(upperPeak, this.upperPeakEnvelope * this.upperPeakRelease);
       this.peakEnvelope = Math.max(peak, this.peakEnvelope * this.peakRelease);
 
       const levelDb = 10 * Math.log10(Math.max(this.meanSquare, 1e-10));
@@ -88,8 +94,12 @@ class LoudnessReducer extends AudioWorkletProcessor {
       this.bassProgram = this.bassProgramSmoothing * this.bassProgram
         + (1 - this.bassProgramSmoothing) * bassProgramTarget;
       const speechPresence = bassDominance < 0.45 && upperDb > -24;
+      const upperPeakDb = 20 * Math.log10(Math.max(this.upperPeakEnvelope, 1e-5));
+      const upperPeakReduction = this.bassProgram > 0.5 && !speechPresence
+        ? Math.min(5, Math.max(0, (upperPeakDb + 8) * 2))
+        : 0;
       const upperReduction = this.bassProgram > 0.5 && !speechPresence
-        ? Math.min(9, Math.max(0, (upperDb + 15) * 3))
+        ? Math.max(upperPeakReduction, Math.min(9, Math.max(0, (upperDb + 15) * 3)))
         : 0;
       const requestedReduction = Math.max(levelReduction, flattenReduction, nightReduction, peakReduction, bassReduction);
       let reductionDb;

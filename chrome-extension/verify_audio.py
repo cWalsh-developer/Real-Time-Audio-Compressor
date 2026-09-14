@@ -244,6 +244,40 @@ GRACE_RENDER = """async () => {
   return changes;
 }"""
 
+QUICK_GUITAR_RENDER = """async () => {
+  const rate = 48000;
+  const context = new OfflineAudioContext(1, rate * 5, rate);
+  await context.audioWorklet.addModule('loudness-reducer.js');
+  const buffer = context.createBuffer(1, rate * 5, rate);
+  const input = buffer.getChannelData(0);
+  for (let i = 0; i < input.length; i++) {
+    const time = i / rate;
+    const guitar = time >= 2.5 && time < 2.55 ? 0.9 : 0.25;
+    const bass = time >= 2 ? 0.7 : 0.15;
+    input[i] = bass * Math.sin(2 * Math.PI * 60 * time)
+      + guitar * Math.sin(2 * Math.PI * 440 * time);
+  }
+  const source = context.createBufferSource();
+  const reducer = new AudioWorkletNode(context, 'loudness-reducer');
+  source.buffer = buffer;
+  source.connect(reducer);
+  reducer.connect(context.destination);
+  source.start();
+  const output = (await context.startRendering()).getChannelData(0);
+  const coefficient = (samples, frequency, start, end) => {
+    let inPhase = 0;
+    let quadrature = 0;
+    for (let i = start * rate; i < end * rate; i++) {
+      const phase = 2 * Math.PI * frequency * i / rate;
+      inPhase += samples[i] * Math.sin(phase);
+      quadrature += samples[i] * Math.cos(phase);
+    }
+    return 2 * Math.hypot(inPhase, quadrature) / ((end - start) * rate);
+  };
+  return 20 * Math.log10(coefficient(output, 440, 2.5, 2.55)
+    / coefficient(input, 440, 2.5, 2.55));
+}"""
+
 
 def main() -> None:
     extension = Path(__file__).resolve().parent
@@ -273,6 +307,7 @@ def main() -> None:
                 consistency = page.evaluate(CONSISTENCY_RENDER)
                 voice = page.evaluate(VOICE_RENDER)
                 grace = page.evaluate(GRACE_RENDER)
+                quickGuitar = page.evaluate(QUICK_GUITAR_RENDER)
             finally:
                 browser.close()
     quiet, moderate, loud, loudest = result["changes"]
@@ -287,6 +322,7 @@ def main() -> None:
     assert max(consistency) - min(consistency) < 3, consistency
     assert all(-2 < change < 0.5 for change in voice), voice
     assert all(math.isfinite(change) for change in grace) and max(grace) - min(grace) < 2.5, grace
+    assert quickGuitar < -10, quickGuitar
     print("Rendered gain changes (dB):", [round(value, 2) for value in result["changes"]])
     print("Burst change (dB):", round(burst["change"], 2))
     print("Bass change (dB):", round(bass, 2))
@@ -294,6 +330,7 @@ def main() -> None:
     print("Consistency changes (dB):", [round(value, 2) for value in consistency])
     print("Voice changes (dB):", [round(value, 2) for value in voice])
     print("Grace changes (dB):", [round(value, 2) for value in grace])
+    print("Quick guitar change (dB):", round(quickGuitar, 2))
     print("Dialogue passthrough and stereo separation verified")
 
 
