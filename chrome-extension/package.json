@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "dependencies": {
+    "onnxruntime-web": "1.30.0"
+  }
+}

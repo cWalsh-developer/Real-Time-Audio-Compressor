@@ -1,6 +1,6 @@
 # Chrome live-audio prototype
 
-This unpacked Manifest V3 extension captures a tab's audio, reduces loud passages in real time, and replays it to the default speaker output. It does not record, upload, classify, or use a multi-second buffer. A level-sensitive AudioWorklet passes dialogue-range audio through unchanged and attenuates only higher-level passages. It is **not** the Python Balanced curve or the AI classifier. A green `CMP` badge means loudness reduction is active; green `AUD` means original audio is playing; amber `0` means capture is active but no audio was measured; `ERR` means capture failed.
+This unpacked Manifest V3 extension captures a tab's audio, reduces loud passages in real time, and replays it to the default speaker output. It does not record or upload audio. The existing level-sensitive AudioWorklet remains the real-time safety path, while a packaged ONNX model supplies an advisory speech-presence score to protect likely dialogue. It does not use a multi-second buffer or perform full source separation. A green `CMP` badge means loudness reduction is active; green `AUD` means original audio is playing; amber `0` means capture is active but no audio was measured; `ERR` means capture failed.
 
 ## Load and test
 

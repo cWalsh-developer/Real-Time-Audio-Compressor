@@ -29,6 +29,12 @@ class LoudnessReducer extends AudioWorkletProcessor {
     this.gainAttack = Math.exp(-1 / (sampleRate * 0.005));
     this.gainRelease = Math.exp(-1 / (sampleRate * 0.4));
     this.upperGainRelease = Math.exp(-1 / (sampleRate * 1.2));
+    this.aiSpeechRatio = 0;
+    this.port.onmessage = ({data}) => {
+      if (data?.type === "AI_SCORE" && Number.isFinite(data.speechRatio)) {
+        this.aiSpeechRatio = Math.max(0, Math.min(1, data.speechRatio));
+      }
+    };
   }
 
   process(inputs, outputs) {
@@ -94,7 +100,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
       const bassProgramTarget = bassDb > -18 && bassDominance > 0.45 ? 1 : 0;
       this.bassProgram = this.bassProgramSmoothing * this.bassProgram
         + (1 - this.bassProgramSmoothing) * bassProgramTarget;
-      const speechPresence = bassDominance < 0.45 && upperDb > -24;
+      const speechPresence = (bassDominance < 0.45 && upperDb > -24) || this.aiSpeechRatio > 0.55;
       const upperPeakDb = 20 * Math.log10(Math.max(this.upperPeakEnvelope, 1e-5));
       const upperPeakReduction = !speechPresence
         ? Math.min(12, Math.max(0, (upperPeakDb + 10) * 3))

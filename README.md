@@ -6,7 +6,7 @@ Adaptive Audio is an experimental project for reducing loud music and sound effe
 
 The intended experience is simple: ordinary speech sounds the same when processing is enabled, but a loud theme tune, gunfire, an explosion, or a revving engine becomes less intrusive. Adjustments should be smooth, without audible volume pumping or loss of lip-sync.
 
-**Current status:** a working Chrome prototype captures a tab and processes its audio locally in real time. The live processor now combines progressive loudness flattening, bass control, bass-conditioned guitar/upper-band reduction, transient protection, a short non-speech grace hold, and voice-band protection. The trained spectral-mask separator is evaluated offline and is **not yet part of the live extension**. Preserving dialogue during genuinely overlapping music and effects remains the main unresolved challenge.
+**Current status:** a working Chrome prototype captures a tab and processes its audio locally in real time. The live processor combines progressive loudness flattening, bass control, bass-conditioned guitar/upper-band reduction, transient protection, a short non-speech grace hold, voice-band protection, and an experimental packaged ONNX speech-presence advisory. The model does not perform full source separation, and preserving dialogue during genuinely overlapping music and effects remains the main unresolved challenge.
 
 ## What the project is aiming for
 

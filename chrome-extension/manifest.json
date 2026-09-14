@@ -5,6 +5,9 @@
   "description": "Compress a Chrome tab's audio live, with an original-audio comparison switch.",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "tabCapture", "offscreen"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
   "background": {"service_worker": "background.js"},
   "action": {"default_title": "Click to start or stop tab audio capture"},
   "commands": {

@@ -278,6 +278,25 @@ QUICK_GUITAR_RENDER = """async () => {
     / coefficient(input, 440, 2.5, 2.55));
 }"""
 
+AI_WORKER_RENDER = """async () => {
+  const worker = new Worker('ai-worker.js');
+  try {
+    const ready = await new Promise((resolve, reject) => {
+      worker.onmessage = (event) => event.data.type === 'READY' ? resolve() : event.data.type === 'ERROR' ? reject(new Error(event.data.error)) : null;
+      worker.postMessage({type: 'LOAD'});
+    });
+    await ready;
+    const score = await new Promise((resolve, reject) => {
+      worker.onmessage = (event) => event.data.type === 'SCORE' ? resolve(event.data.speechRatio) : event.data.type === 'ERROR' ? reject(new Error(event.data.error)) : null;
+      const values = new Float32Array(257).fill(0.1);
+      worker.postMessage({type: 'INFER', values}, [values.buffer]);
+    });
+    return score;
+  } finally {
+    worker.terminate();
+  }
+}"""
+
 
 def main() -> None:
     extension = Path(__file__).resolve().parent
@@ -308,6 +327,7 @@ def main() -> None:
                 voice = page.evaluate(VOICE_RENDER)
                 grace = page.evaluate(GRACE_RENDER)
                 quickGuitar = page.evaluate(QUICK_GUITAR_RENDER)
+                aiScore = page.evaluate(AI_WORKER_RENDER)
             finally:
                 browser.close()
     quiet, moderate, loud, loudest = result["changes"]
@@ -323,6 +343,7 @@ def main() -> None:
     assert all(-2 < change < 0.5 for change in voice), voice
     assert all(math.isfinite(change) for change in grace) and max(grace) - min(grace) < 2.5, grace
     assert quickGuitar < -10, quickGuitar
+    assert math.isfinite(aiScore) and 0 <= aiScore <= 1, aiScore
     print("Rendered gain changes (dB):", [round(value, 2) for value in result["changes"]])
     print("Burst change (dB):", round(burst["change"], 2))
     print("Bass change (dB):", round(bass, 2))
@@ -331,6 +352,7 @@ def main() -> None:
     print("Voice changes (dB):", [round(value, 2) for value in voice])
     print("Grace changes (dB):", [round(value, 2) for value in grace])
     print("Quick guitar change (dB):", round(quickGuitar, 2))
+    print("AI worker speech score:", round(aiScore, 4))
     print("Dialogue passthrough and stereo separation verified")
 
 
