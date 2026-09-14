@@ -22,7 +22,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
     this.reductionHoldDb = 0;
     this.reductionHoldSamples = 0;
     this.reductionHoldDuration = Math.round(sampleRate * 0.9);
-    this.maximumTotalReduction = 14;
+    this.maximumTotalReduction = 10;
     this.baselineRise = 1 - Math.exp(-1 / (sampleRate * 5));
     this.baselineFall = 1 - Math.exp(-1 / (sampleRate * 1));
     this.peakRelease = Math.exp(-1 / (sampleRate * 0.08));
@@ -102,22 +102,23 @@ class LoudnessReducer extends AudioWorkletProcessor {
       const upperReduction = this.bassProgram > 0.5 && !speechPresence
         ? Math.max(upperPeakReduction, Math.min(9, Math.max(0, (upperDb + 15) * 3)))
         : 0;
-      const requestedReduction = Math.max(levelReduction, flattenReduction, nightReduction, peakReduction, bassReduction);
+      const sustainedReduction = Math.max(levelReduction, flattenReduction, nightReduction, bassReduction);
+      const transientReductionTarget = Math.max(peakReduction, transientReduction);
       let reductionDb;
       if (speechPresence) {
         this.reductionHoldDb = 0;
         this.reductionHoldSamples = 0;
         reductionDb = Math.max(Math.min(1.5, levelReduction), transientReduction);
       } else {
-        if (requestedReduction >= this.reductionHoldDb) {
-          this.reductionHoldDb = requestedReduction;
+        if (sustainedReduction >= this.reductionHoldDb) {
+          this.reductionHoldDb = sustainedReduction;
           this.reductionHoldSamples = this.reductionHoldDuration;
         } else if (this.reductionHoldSamples > 0) {
           this.reductionHoldSamples--;
         } else {
-          this.reductionHoldDb = requestedReduction;
+          this.reductionHoldDb = sustainedReduction;
         }
-        reductionDb = Math.max(requestedReduction, this.reductionHoldDb);
+        reductionDb = Math.max(sustainedReduction, this.reductionHoldDb, transientReductionTarget);
       }
       const upperTargetGain = 10 ** (-upperReduction / 20);
       const upperCoefficient = upperTargetGain < this.upperGain ? this.gainAttack : this.upperGainRelease;

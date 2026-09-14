@@ -315,7 +315,7 @@ def main() -> None:
     assert -2 < loudest < 0.5, result
     assert result["dialogueDifference"] < 1e-6, result
     assert result["stereoDifference"] > 0.01, result
-    assert -16 < burst["change"] < -12 and burst["peak"] <= 0.8, burst
+    assert -12 < burst["change"] < -8 and burst["peak"] <= 0.8, burst
     assert burst["dialogueDifference"] < 1e-6, burst
     assert -16 < bass < -2, bass
     assert bassGuitar["bassChange"] < -2 and bassGuitar["guitarChange"] < bassGuitar["bassChange"] - 0.5, bassGuitar
