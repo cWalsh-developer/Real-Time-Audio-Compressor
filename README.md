@@ -95,6 +95,35 @@ WAV input must be uncompressed 16-bit PCM. Video processing uses bundled FFmpeg 
 
 The [offline workflow guide](docs/offline-workflow.md) covers modes, optional classification, rolling processing, measurement reports, and the earlier *Tears of Steel* listening trials. Source media, generated previews, and downloaded models are kept outside Git; they are not included in a fresh checkout.
 
+### Prepare training windows
+
+The initial DnR v3 subset is pinned in `evaluation/datasets/dnr-v3-starter.json`. After downloading the planned files, prepare aligned 16 kHz stems and split-preserving four-second windows with:
+
+```powershell
+python -c "import json; from adaptive_audio.dataset_audio import prepare_dataset; plan=json.load(open('evaluation/datasets/dnr-v3-starter.json', encoding='utf-8')); prepare_dataset(plan, 'audio/datasets/dnr-v3', sample_rate=16000)"
+```
+
+The resulting `audio/datasets/dnr-v3/windows-16000-*.jsonl` indexes can be consumed with `adaptive_audio.training_data.iter_batches`. The loader returns batches containing `mixture`, `speech`, `music`, and `sfx` arrays and validates cache bounds and stem presence before yielding data.
+
+### Train the baseline separator
+
+Training is optional and uses the existing PyTorch separation environment, keeping PyTorch out of the lightweight offline install:
+
+```powershell
+$env:PYTHONPATH = "src"
+models\separation-venv\Scripts\python.exe -m adaptive_audio.train_cli audio\datasets\dnr-v3 audio\datasets\dnr-v3\checkpoints --epochs 5 --batch-size 4 --device auto
+```
+
+The command learns a compact speech magnitude mask from the mixture and writes `checkpoint_latest.pt` plus per-epoch checkpoints. Continue an interrupted run with `--resume audio\datasets\dnr-v3\checkpoints\checkpoint_latest.pt --epochs 10`. This is a baseline for measuring separation quality, not yet a browser-ready or production separator.
+
+Evaluate the held-out test split before changing the model or training budget:
+
+```powershell
+models\separation-venv\Scripts\python.exe -m adaptive_audio.eval_train_cli audio\datasets\dnr-v3\checkpoints\checkpoint_latest.pt audio\datasets\dnr-v3 audio\datasets\dnr-v3\evaluation-test.json --split test --device auto
+```
+
+The first five-epoch checkpoint scored `+0.46 dB` average SI-SDR improvement over the unprocessed mixture on 239 non-silent test windows. One silent-speech window is reported separately because SI-SDR is undefined there. This objective result is an initial baseline; listening tests, artifact checks, and latency measurements are still required.
+
 ## Next development stages
 
 Keep each stage independently reviewable and committable:
