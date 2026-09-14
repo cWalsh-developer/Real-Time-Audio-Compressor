@@ -20,6 +20,7 @@ adaptive-audio-classify = "adaptive_audio.classify_cli:main"
 adaptive-audio-rolling = "adaptive_audio.rolling_cli:main"
 adaptive-audio-train = "adaptive_audio.train_cli:main"
 adaptive-audio-eval-train = "adaptive_audio.eval_train_cli:main"
+adaptive-audio-benchmark-train = "adaptive_audio.benchmark_train_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

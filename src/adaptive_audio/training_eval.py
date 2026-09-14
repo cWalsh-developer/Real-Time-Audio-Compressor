@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+import time
 
 import numpy as np
 import torch
@@ -125,6 +126,41 @@ def render_preview(checkpoint_path, root, output_dir, *, split="test", index=0,
     (output_dir / f"{split}-{index:04d}-report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
+
+
+def benchmark_checkpoint(checkpoint_path, root, *, split="test", batch_size=4,
+                         batches=20, device="auto"):
+    """Measure offline inference throughput on indexed windows."""
+    if type(batches) is not int or batches < 1:
+        raise ValueError("batches must be a positive integer")
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    torch_device = torch.device(device)
+    checkpoint = torch.load(checkpoint_path, map_location=torch_device, weights_only=True)
+    model = SpectralMaskNet().to(torch_device)
+    model.load_state_dict(checkpoint["model"])
+    model.eval()
+    processed_windows = 0
+    audio_seconds = 0
+    started = time.perf_counter()
+    with torch.inference_mode():
+        for batch_number, batch in enumerate(iter_batches(root, split, batch_size, shuffle=False)):
+            mixture = torch.from_numpy(batch["mixture"]).to(torch_device)
+            _estimate(model, mixture, torch_device)
+            processed_windows += len(batch["mixture"])
+            audio_seconds += len(batch["mixture"]) * batch["mixture"].shape[1] / 16000
+            if torch_device.type == "cuda":
+                torch.cuda.synchronize(torch_device)
+            if batch_number + 1 >= batches:
+                break
+    elapsed = time.perf_counter() - started
+    return {
+        "checkpoint": str(Path(checkpoint_path)), "split": split, "device": str(torch_device),
+        "batches": batch_number + 1, "windows": processed_windows,
+        "audio_seconds": audio_seconds, "elapsed_seconds": elapsed,
+        "realtime_factor": audio_seconds / max(elapsed, 1e-9),
+        "milliseconds_per_window": elapsed * 1000 / max(processed_windows, 1),
+    }
 
 
 def _preview_metrics(audio, sample_rate):

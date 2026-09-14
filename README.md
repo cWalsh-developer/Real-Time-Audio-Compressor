@@ -132,6 +132,14 @@ models\separation-venv\Scripts\python.exe -m adaptive_audio.eval_train_cli audio
 
 The preview report records RMS, peak, and clipped-sample counts. Three representative test windows rendered without clipping; listen for speech loss, musical noise, and pumping before considering a larger model or browser integration.
 
+Measure offline inference throughput with:
+
+```powershell
+models\separation-venv\Scripts\python.exe -m adaptive_audio.benchmark_train_cli audio\datasets\dnr-v3\checkpoints\checkpoint_latest.pt audio\datasets\dnr-v3 --split test --batch-size 4 --batches 20 --device cpu
+```
+
+The current checkpoint processed 320 seconds of held-out audio at `91.99x` real time (`43.5 ms` per four-second window) on CPU. This is an offline batch result; browser work still needs frame-level latency, sustained-load, stereo, fallback, and lip-sync trials.
+
 ## Next development stages
 
 Keep each stage independently reviewable and committable:
