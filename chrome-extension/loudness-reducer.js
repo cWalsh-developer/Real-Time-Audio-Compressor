@@ -83,7 +83,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
       const bassProgramTarget = bassDb > -18 && bassDominance > 0.45 ? 1 : 0;
       this.bassProgram = this.bassProgramSmoothing * this.bassProgram
         + (1 - this.bassProgramSmoothing) * bassProgramTarget;
-      const speechPresence = bassDominance < 0.65 && upperDb > -24;
+      const speechPresence = bassDominance < 0.45 && upperDb > -24;
       const upperReduction = this.bassProgram > 0.5 && !speechPresence
         ? Math.min(9, Math.max(0, (upperDb + 15) * 3))
         : 0;
