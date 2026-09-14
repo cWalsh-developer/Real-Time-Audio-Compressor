@@ -73,7 +73,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
       const upperDb = 10 * Math.log10(Math.max(this.upperMeanSquare, 1e-10));
       const bassDominance = this.bassMeanSquare / Math.max(this.meanSquare, 1e-10);
       const upperReduction = bassDb > -18 && bassDominance > 0.45
-        ? Math.min(6, Math.max(0, (upperDb + 15) * 2))
+        ? Math.min(9, Math.max(0, (upperDb + 15) * 3))
         : 0;
       const upperTargetGain = 10 ** (-upperReduction / 20);
       const upperCoefficient = upperTargetGain < this.upperGain ? this.gainAttack : this.gainRelease;
