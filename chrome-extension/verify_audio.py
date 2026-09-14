@@ -111,6 +111,41 @@ BASS_RENDER = """async () => {
   return 20 * Math.log10(rms(output, 3, 4) / rms(input, 3, 4));
 }"""
 
+BASS_GUITAR_RENDER = """async () => {
+  const rate = 48000;
+  const context = new OfflineAudioContext(1, rate * 4, rate);
+  await context.audioWorklet.addModule('loudness-reducer.js');
+  const buffer = context.createBuffer(1, rate * 4, rate);
+  const input = buffer.getChannelData(0);
+  for (let i = 0; i < input.length; i++) {
+    const time = i / rate;
+    const amplitude = time >= 2 ? 0.7 : 0.15;
+    input[i] = amplitude * (Math.sin(2 * Math.PI * 60 * time)
+      + 0.55 * Math.sin(2 * Math.PI * 440 * time));
+  }
+  const source = context.createBufferSource();
+  const reducer = new AudioWorkletNode(context, 'loudness-reducer');
+  source.buffer = buffer;
+  source.connect(reducer);
+  reducer.connect(context.destination);
+  source.start();
+  const output = (await context.startRendering()).getChannelData(0);
+  const coefficient = (samples, frequency, start, end) => {
+    let inPhase = 0;
+    let quadrature = 0;
+    for (let i = start * rate; i < end * rate; i++) {
+      const phase = 2 * Math.PI * frequency * i / rate;
+      inPhase += samples[i] * Math.sin(phase);
+      quadrature += samples[i] * Math.cos(phase);
+    }
+    return 2 * Math.hypot(inPhase, quadrature) / ((end - start) * rate);
+  };
+  return {
+    bassChange: 20 * Math.log10(coefficient(output, 60, 3, 4) / coefficient(input, 60, 3, 4)),
+    guitarChange: 20 * Math.log10(coefficient(output, 440, 3, 4) / coefficient(input, 440, 3, 4)),
+  };
+}"""
+
 
 def main() -> None:
     extension = Path(__file__).resolve().parent
@@ -136,6 +171,7 @@ def main() -> None:
                 result = page.evaluate(RENDER)
                 burst = page.evaluate(BURST_RENDER)
                 bass = page.evaluate(BASS_RENDER)
+                bassGuitar = page.evaluate(BASS_GUITAR_RENDER)
             finally:
                 browser.close()
     quiet, moderate, loud, loudest = result["changes"]
@@ -146,9 +182,11 @@ def main() -> None:
     assert -13 < burst["change"] < -8 and burst["peak"] <= 0.8, burst
     assert burst["dialogueDifference"] < 1e-6, burst
     assert -12 < bass < -2, bass
+    assert bassGuitar["bassChange"] < -2 and bassGuitar["guitarChange"] < bassGuitar["bassChange"] - 0.5, bassGuitar
     print("Rendered gain changes (dB):", [round(value, 2) for value in result["changes"]])
     print("Burst change (dB):", round(burst["change"], 2))
     print("Bass change (dB):", round(bass, 2))
+    print("Bass/guitar changes (dB):", {key: round(value, 2) for key, value in bassGuitar.items()})
     print("Dialogue passthrough and stereo separation verified")
 
 
