@@ -85,6 +85,32 @@ BURST_RENDER = """async () => {
   return {change: 10 * Math.log10(after / before), peak, dialogueDifference};
 }"""
 
+BASS_RENDER = """async () => {
+  const rate = 48000;
+  const context = new OfflineAudioContext(1, rate * 4, rate);
+  await context.audioWorklet.addModule('loudness-reducer.js');
+  const buffer = context.createBuffer(1, rate * 4, rate);
+  const input = buffer.getChannelData(0);
+  for (let i = 0; i < input.length; i++) {
+    const time = i / rate;
+    const amplitude = time >= 2 ? 0.7 : 0.15;
+    input[i] = amplitude * Math.sin(2 * Math.PI * 60 * time);
+  }
+  const source = context.createBufferSource();
+  const reducer = new AudioWorkletNode(context, 'loudness-reducer');
+  source.buffer = buffer;
+  source.connect(reducer);
+  reducer.connect(context.destination);
+  source.start();
+  const output = (await context.startRendering()).getChannelData(0);
+  const rms = (samples, start, end) => {
+    let sum = 0;
+    for (let i = start * rate; i < end * rate; i++) sum += samples[i] ** 2;
+    return Math.sqrt(sum / ((end - start) * rate));
+  };
+  return 20 * Math.log10(rms(output, 3, 4) / rms(input, 3, 4));
+}"""
+
 
 def main() -> None:
     extension = Path(__file__).resolve().parent
@@ -109,6 +135,7 @@ def main() -> None:
                 page.goto(worker.url.replace("background.js", "offscreen.html"))
                 result = page.evaluate(RENDER)
                 burst = page.evaluate(BURST_RENDER)
+                bass = page.evaluate(BASS_RENDER)
             finally:
                 browser.close()
     quiet, moderate, loud, loudest = result["changes"]
@@ -118,8 +145,10 @@ def main() -> None:
     assert result["stereoDifference"] > 0.01, result
     assert -13 < burst["change"] < -8 and burst["peak"] <= 0.8, burst
     assert burst["dialogueDifference"] < 1e-6, burst
+    assert -12 < bass < -2, bass
     print("Rendered gain changes (dB):", [round(value, 2) for value in result["changes"]])
     print("Burst change (dB):", round(burst["change"], 2))
+    print("Bass change (dB):", round(bass, 2))
     print("Dialogue passthrough and stereo separation verified")
 
 
