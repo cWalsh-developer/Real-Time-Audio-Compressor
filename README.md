@@ -6,7 +6,7 @@ Adaptive Audio is an experimental project for reducing loud music and sound effe
 
 The intended experience is simple: ordinary speech sounds the same when processing is enabled, but a loud theme tune, gunfire, an explosion, or a revving engine becomes less intrusive. Adjustments should be smooth, without audible volume pumping or loss of lip-sync.
 
-**Current status:** a working Chrome prototype reduces loud passages using audio levels. AI source separation is being evaluated separately and is **not yet part of the live extension**. Preserving dialogue during overlapping music and effects remains the main unresolved challenge.
+**Current status:** a working Chrome prototype captures a tab and processes its audio locally in real time. The live processor now combines progressive loudness flattening, bass control, bass-conditioned guitar/upper-band reduction, transient protection, a short non-speech grace hold, and voice-band protection. The trained spectral-mask separator is evaluated offline and is **not yet part of the live extension**. Preserving dialogue during genuinely overlapping music and effects remains the main unresolved challenge.
 
 ## What the project is aiming for
 
@@ -24,13 +24,13 @@ These are acceptance targets, not guarantees of the current prototype. The detai
 
 | Component                     | Available now                                                                                   | Current limit                                                                                                      |
 | ----------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| **Chrome extension**          | Captures tab audio, reduces loud passages, and supports instant comparison with original audio. | Uses levels rather than sound recognition. Loud speech can still be reduced, including during overlapping effects. |
+| **Chrome extension**          | Captures tab audio, reduces sustained loudness and bass, catches brief peaks, protects steady voice-like material, and supports instant comparison with original audio. | Uses frequency-band levels rather than speech recognition or source separation. Complex overlapping content can still need listening-based tuning. |
 | **Offline Python processor**  | Processes WAV, MOV, and MP4 files with Cinema, Balanced, and Night modes.                       | Processes the whole mix; these modes are separate from the live extension's settings.                              |
 | **Optional audio classifier** | Uses YAMNet to estimate speech, music, action, and other content for offline gain decisions.    | Classifies sounds; it does not extract separate dialogue and effects tracks.                                       |
 | **Rolling Python prototype**  | Processes successive audio blocks with configurable look-ahead.                                 | Its default two-second buffer delays audio; it is not the Chrome playback engine.                                  |
 | **Source separation trials**  | Compare estimated dialogue/background separation, audio quality, and processing speed.          | No model has yet passed all quality, browser performance, and playback requirements.                               |
 
-Local listening has confirmed playback on Netflix with acceptable sync in the tested setup. This is not a guarantee of compatibility with every title, streaming service, or device. A smart TV version is a longer-term possibility; there is no TV app in this repository.
+Local listening has confirmed playback on Netflix with acceptable sync in the tested setup. The extension is tuned for quieter viewing, but its controls remain heuristic and should be checked against the specific program being watched. This is not a guarantee of compatibility with every title, streaming service, or device. A smart TV version is a longer-term possibility; there is no TV app in this repository.
 
 ## Try the Chrome extension
 
@@ -45,6 +45,19 @@ The current prototype requires **Chrome 116 or newer**. It needs no Python envir
 **Netflix fullscreen:** enter the player's fullscreen mode **before** starting capture, then use **Alt+Shift+A**. Chrome may prevent entering player fullscreen after capture starts. Configure shortcuts at `chrome://extensions/shortcuts` if needed.
 
 See the [extension guide](chrome-extension/README.md) for badge meanings, troubleshooting, and browser verification instructions.
+
+### How the live processor works
+
+The extension does not identify dialogue, music, or effects as separate sources. Its AudioWorklet measures the incoming mix and applies different controls to different frequency regions:
+
+- Sustained loud passages are progressively flattened rather than simply muted.
+- Bass and sub-bass receive dedicated control so impacts do not dominate nighttime listening.
+- When bass is prominent, the upper band receives additional attenuation to reduce guitar and similar theme-song peaks.
+- A roughly 0.9-second grace hold carries sustained non-speech reduction through short dips, preventing the mix from jumping back up between peaks.
+- Steady voice-like material is protected from the strongest flattening, while a separate fast path still catches sharp transients.
+- The output gain path has a 6 dB maximum total attenuation limit, plus a 0.8 sample-peak safety cap.
+
+These controls are deliberately conservative heuristics. They can reduce a loud voice, miss an unusual sound, or alter the balance of overlapping speech and music. Use the original-audio toggle at the same speaker volume when evaluating a title.
 
 ## Why source separation is the next step
 
@@ -73,7 +86,7 @@ Separation quality matters as much as speed: speech leaking into the estimated b
 | **DTLN**           | Downloadable streaming ONNX models; fast natively and close to the original on isolated speech, but the tested remix still lost dialogue during music. |
 | **Rapidly SDK**    | The native demo showed promising throughput. Unwatermarked quality, stereo preservation, and browser SDK integration still need evaluation.            |
 
-No licensed model has been selected, and the current extension does not depend on one. Native processing speed alone does not prove that a model is suitable for Chrome.
+The repository also contains a small PyTorch spectral-mask baseline trained on a pinned DnR v3 subset. It improves the held-out test SI-SDR by `+0.46 dB` in the recorded baseline and runs well in offline batches, but it is not yet a validated cinematic separator or a browser runtime. No licensed model has been selected, and the current extension does not depend on one. Native processing speed alone does not prove that a model is suitable for Chrome.
 
 See the [offline separation findings](evaluation/separation-findings.md), [browser model findings](evaluation/dfn-browser-findings.md), [GTCRN findings](evaluation/causal-separator-findings.md), [DTLN and streaming Denoiser findings](evaluation/dtln-findings.md), and [licensed SDK trial](evaluation/rapidly-trial.md) for measurements and reproduction details.
 
