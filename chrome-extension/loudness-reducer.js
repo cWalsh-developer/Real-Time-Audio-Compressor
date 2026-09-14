@@ -22,7 +22,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
     this.reductionHoldDb = 0;
     this.reductionHoldSamples = 0;
     this.reductionHoldDuration = Math.round(sampleRate * 0.9);
-    this.maximumTotalReduction = 8;
+    this.maximumTotalReduction = 6;
     this.baselineRise = 1 - Math.exp(-1 / (sampleRate * 5));
     this.baselineFall = 1 - Math.exp(-1 / (sampleRate * 1));
     this.peakRelease = Math.exp(-1 / (sampleRate * 0.08));
