@@ -19,9 +19,13 @@ async function ensureOffscreen() {
 }
 
 async function setBadge(tabId, text, color, title) {
-  await chrome.action.setBadgeText({tabId, text});
-  await chrome.action.setBadgeBackgroundColor({tabId, color});
-  await chrome.action.setTitle({tabId, title});
+  try {
+    await chrome.action.setBadgeText({tabId, text});
+    await chrome.action.setBadgeBackgroundColor({tabId, color});
+    await chrome.action.setTitle({tabId, title});
+  } catch (error) {
+    if (!String(error?.message || error).includes("No tab with id")) throw error;
+  }
 }
 
 chrome.action.onClicked.addListener(async (tab) => {
@@ -44,7 +48,9 @@ chrome.action.onClicked.addListener(async (tab) => {
     await setBadge(tab.id, "...", "#777777", "Listening for tab audio");
   } catch (error) {
     console.error("Adaptive Audio capture failed", error);
-    await setBadge(tab.id, "ERR", "#b42318", `Capture failed: ${error.message}`);
+    await setBadge(tab.id, "ERR", "#b42318", `Capture failed: ${error.message}`).catch((badgeError) => {
+      console.error("Adaptive Audio badge update failed", badgeError);
+    });
   }
 });
 
@@ -55,7 +61,9 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
     if (!result?.ok) throw new Error(result?.error || "Audio mode did not change");
     await chrome.action.setTitle({tabId: tab.id, title: result.processed
       ? "Compressed audio is active; Alt+Shift+P for original audio"
-      : "Original audio is active; Alt+Shift+P for compressed audio"});
+      : "Original audio is active; Alt+Shift+P for compressed audio"}).catch((error) => {
+        if (!String(error?.message || error).includes("No tab with id")) throw error;
+      });
   } catch (error) {
     console.error("Adaptive Audio mode change failed", error);
   }
