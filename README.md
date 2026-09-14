@@ -140,19 +140,6 @@ models\separation-venv\Scripts\python.exe -m adaptive_audio.benchmark_train_cli 
 
 The current checkpoint processed 320 seconds of held-out audio at `91.99x` real time (`43.5 ms` per four-second window) on CPU. This is an offline batch result; browser work still needs frame-level latency, sustained-load, stereo, fallback, and lip-sync trials.
 
-### Client-side model packaging
-
-The selected direction is local browser processing with ONNX Runtime Web or a comparable WASM/WebGPU runtime. Export the current baseline for compatibility experiments with:
-
-```powershell
-$env:PYTHONPATH = "src"
-models\separation-venv\Scripts\python.exe -m adaptive_audio.export_model audio\datasets\dnr-v3\checkpoints\checkpoint_latest.pt models\browser\speech-mask.onnx
-```
-
-The exporter writes a SHA-256 sidecar manifest. This artifact is a packaging milestone only: the current model requires four-second spectrogram windows, so putting it directly in the live AudioWorklet would add unacceptable latency. A causal, short-frame model must pass latency and listening gates before replacing the existing reducer. No server or commercial SDK is required for this client-side path.
-
-See the [client-side integration decision](docs/client-side-integration.md) for the browser runtime boundary and the remaining causal-model requirements.
-
 ## Next development stages
 
 Keep each stage independently reviewable and committable:
