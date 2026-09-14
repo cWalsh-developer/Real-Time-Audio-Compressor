@@ -153,6 +153,17 @@ models\separation-venv\Scripts\python.exe -m adaptive_audio.benchmark_train_cli 
 
 The current checkpoint processed 320 seconds of held-out audio at `91.99x` real time (`43.5 ms` per four-second window) on CPU. This is an offline batch result; browser work still needs frame-level latency, sustained-load, stereo, fallback, and lip-sync trials.
 
+### Package the trained model for browser experiments
+
+The baseline can be exported to ONNX, which is the first requirement for client-side inference. Run this from the existing PyTorch environment:
+
+```powershell
+$env:PYTHONPATH = "src"
+models\separation-venv\Scripts\python.exe -m adaptive_audio.export_browser_model audio\datasets\dnr-v3\checkpoints\checkpoint_latest.pt models\browser\spectral-mask.onnx
+```
+
+The exporter preserves dynamic time-frame dimensions and has been checked against PyTorch with ONNX Runtime. This artifact is for browser experiments only. The current network consumes four-second spectral windows and is not yet connected to the live extension because using it directly would add unacceptable latency and would not provide causal state across audio frames.
+
 ## Next development stages
 
 Keep each stage independently reviewable and committable:
