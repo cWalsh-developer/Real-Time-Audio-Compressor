@@ -22,6 +22,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
     this.reductionHoldDb = 0;
     this.reductionHoldSamples = 0;
     this.reductionHoldDuration = Math.round(sampleRate * 0.9);
+    this.maximumTotalReduction = 14;
     this.baselineRise = 1 - Math.exp(-1 / (sampleRate * 5));
     this.baselineFall = 1 - Math.exp(-1 / (sampleRate * 1));
     this.peakRelease = Math.exp(-1 / (sampleRate * 0.08));
@@ -129,8 +130,9 @@ class LoudnessReducer extends AudioWorkletProcessor {
         const sourceChannel = original[Math.min(channel, original.length - 1)];
         const sample = sourceChannel?.[frame] || 0;
         const bass = bassValues[Math.min(channel, bassValues.length - 1)] || 0;
+        const combinedGain = Math.max(this.gain * this.upperGain, 10 ** (-this.maximumTotalReduction / 20));
         output[channel][frame] = (bass + (sample - bass) * this.upperGain)
-          * this.gain
+          * combinedGain
           * Math.min(1, 0.8 / Math.max(peak, 1e-5));
       }
     }
