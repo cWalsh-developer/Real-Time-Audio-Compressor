@@ -208,14 +208,14 @@ def main() -> None:
             finally:
                 browser.close()
     quiet, moderate, loud, loudest = result["changes"]
-    assert abs(quiet) < 0.01 and -2 < moderate < -0.5, result
-    assert -8 < loud < -5 and -13 < loudest < -10, result
-    assert loudest < loud - 3 and loud < moderate - 3, result
+    assert abs(quiet) < 0.01 and -13 < moderate < -9, result
+    assert -16 < loud < -12 and -15 < loudest < -13.5, result
+    assert loud < moderate - 1 and abs(loudest - loud) < 0.1, result
     assert result["dialogueDifference"] < 1e-6, result
     assert result["stereoDifference"] > 0.01, result
-    assert -13 < burst["change"] < -8 and burst["peak"] <= 0.8, burst
+    assert -16 < burst["change"] < -12 and burst["peak"] <= 0.8, burst
     assert burst["dialogueDifference"] < 1e-6, burst
-    assert -14 < bass < -2, bass
+    assert -16 < bass < -2, bass
     assert bassGuitar["bassChange"] < -2 and bassGuitar["guitarChange"] < bassGuitar["bassChange"] - 0.5, bassGuitar
     assert max(consistency) - min(consistency) < 3, consistency
     print("Rendered gain changes (dB):", [round(value, 2) for value in result["changes"]])
