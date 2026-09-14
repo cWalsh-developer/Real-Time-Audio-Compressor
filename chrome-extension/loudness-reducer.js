@@ -64,6 +64,9 @@ class LoudnessReducer extends AudioWorkletProcessor {
       const levelReduction = levelDb > -10.5
         ? Math.min(10.5, Math.max(0, (levelDb - this.baselineDb - 6) * 3.5))
         : 0;
+      const flattenReduction = levelDb > -14
+        ? Math.min(12, Math.max(0, (levelDb + 14) * 2.2))
+        : 0;
       const peakDb = 20 * Math.log10(Math.max(this.peakEnvelope, 1e-5));
       const peakReduction = Math.min(6, Math.max(0, (peakDb + 3) * 3));
       const bassDb = 10 * Math.log10(Math.max(this.bassMeanSquare, 1e-10));
@@ -71,7 +74,7 @@ class LoudnessReducer extends AudioWorkletProcessor {
       const bassPeakDb = 20 * Math.log10(Math.max(this.bassEnvelope, 1e-5));
       const bassPeakReduction = Math.min(5, Math.max(0, (bassPeakDb + 6) * 1.5));
       const bassReduction = Math.max(bassLevelReduction, bassPeakReduction);
-      const reductionDb = Math.max(levelReduction, peakReduction, bassReduction);
+      const reductionDb = Math.max(levelReduction, flattenReduction, peakReduction, bassReduction);
       const upperDb = 10 * Math.log10(Math.max(this.upperMeanSquare, 1e-10));
       const bassDominance = this.bassMeanSquare / Math.max(this.meanSquare, 1e-10);
       const bassProgramTarget = bassDb > -18 && bassDominance > 0.45 ? 1 : 0;
