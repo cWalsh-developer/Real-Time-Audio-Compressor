@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .training_eval import write_evaluation_report
+from .training_eval import render_preview, write_evaluation_report
 
 
 def main(argv=None):
@@ -16,12 +16,21 @@ def main(argv=None):
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--max-batches", type=int)
+    parser.add_argument("--preview-dir", type=Path)
+    parser.add_argument("--preview-index", type=int, default=0)
+    parser.add_argument("--background-gain", type=float, default=0.35)
     args = parser.parse_args(argv)
     report = write_evaluation_report(
         args.checkpoint, args.root, args.output, split=args.split,
         batch_size=args.batch_size, device=args.device, max_batches=args.max_batches,
     )
     print(json.dumps(report, indent=2))
+    if args.preview_dir is not None:
+        preview = render_preview(
+            args.checkpoint, args.root, args.preview_dir, split=args.split,
+            index=args.preview_index, background_gain=args.background_gain, device=args.device,
+        )
+        print(json.dumps({"preview": preview}, indent=2))
     return 0
 
 

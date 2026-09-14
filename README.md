@@ -124,6 +124,14 @@ models\separation-venv\Scripts\python.exe -m adaptive_audio.eval_train_cli audio
 
 The first five-epoch checkpoint scored `+0.46 dB` average SI-SDR improvement over the unprocessed mixture on 239 non-silent test windows. One silent-speech window is reported separately because SI-SDR is undefined there. This objective result is an initial baseline; listening tests, artifact checks, and latency measurements are still required.
 
+Render a held-out listening set with the original mixture, clean reference, estimated speech, and a conservative background reduction:
+
+```powershell
+models\separation-venv\Scripts\python.exe -m adaptive_audio.eval_train_cli audio\datasets\dnr-v3\checkpoints\checkpoint_latest.pt audio\datasets\dnr-v3 audio\datasets\dnr-v3\evaluation-test.json --split test --preview-dir audio\datasets\dnr-v3\previews\test-0000 --preview-index 0 --background-gain 0.35 --device auto
+```
+
+The preview report records RMS, peak, and clipped-sample counts. Three representative test windows rendered without clipping; listen for speech loss, musical noise, and pumping before considering a larger model or browser integration.
+
 ## Next development stages
 
 Keep each stage independently reviewable and committable:

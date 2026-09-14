@@ -7,7 +7,8 @@ import numpy as np
 import torch
 
 from .training import HOP_LENGTH, N_FFT, SpectralMaskNet
-from .training_data import iter_batches
+from .training_data import _load_window, iter_batches, read_windows
+from .wav import write_wav
 
 
 def si_sdr(reference, estimate):
@@ -84,3 +85,50 @@ def write_evaluation_report(checkpoint_path, root, output, **options):
     report = evaluate_checkpoint(checkpoint_path, root, **options)
     Path(output).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
+
+
+def render_preview(checkpoint_path, root, output_dir, *, split="test", index=0,
+                   background_gain=0.35, device="auto"):
+    """Render one indexed window and a conservative estimated-background remix."""
+    if not 0 <= background_gain <= 1:
+        raise ValueError("background gain must be between 0 and 1")
+    windows = read_windows(root, split)
+    if type(index) is not int or not 0 <= index < len(windows):
+        raise ValueError(f"preview index must be between 0 and {len(windows) - 1}")
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    torch_device = torch.device(device)
+    checkpoint = torch.load(checkpoint_path, map_location=torch_device, weights_only=True)
+    model = SpectralMaskNet().to(torch_device)
+    model.load_state_dict(checkpoint["model"])
+    model.eval()
+    window = _load_window(root, windows[index])
+    mixture = torch.from_numpy(window["mixture"])[None].to(torch_device)
+    with torch.inference_mode():
+        estimate = _estimate(model, mixture, torch_device)[0].cpu().numpy()
+    background = window["mixture"] - estimate
+    reduced = estimate + background_gain * background
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    sample_rate = windows[index]["sample_rate"]
+    outputs = {"mixture": window["mixture"], "speech_reference": window["speech"],
+               "speech_estimate": estimate, "background_reduced": reduced}
+    for name, audio in outputs.items():
+        write_wav(output_dir / f"{split}-{index:04d}-{name}.wav", audio, sample_rate)
+    report = {
+        "checkpoint": str(Path(checkpoint_path)), "split": split, "index": index,
+        "background_gain": background_gain, "sample_rate": sample_rate,
+        "frames": len(window["mixture"]),
+        "files": {name: f"{split}-{index:04d}-{name}.wav" for name in outputs},
+        "metrics": {name: _preview_metrics(audio, sample_rate) for name, audio in outputs.items()},
+    }
+    (output_dir / f"{split}-{index:04d}-report.json").write_text(
+        json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    return report
+
+
+def _preview_metrics(audio, sample_rate):
+    peak = float(np.max(np.abs(audio)))
+    rms = float(np.sqrt(np.mean(audio.astype(np.float64) ** 2)))
+    return {"peak": peak, "rms_dbfs": float(20 * np.log10(max(rms, 1e-8))),
+            "clipped_samples": int(np.count_nonzero(np.abs(audio) >= 1))}
