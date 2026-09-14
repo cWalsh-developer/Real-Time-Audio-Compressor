@@ -10,25 +10,25 @@ The intended experience is simple: ordinary speech sounds the same when processi
 
 ## What the project is aiming for
 
-| Situation | Intended behaviour |
-| --- | --- |
-| Normal dialogue, deeper voices, or a moderately raised voice | Preserve the original level without dipping midway through a sentence. |
-| Ordinary background music and everyday sounds | Leave comfortable audio unchanged. |
-| Sustained loud music, theme tunes, or engines | Reduce the loud section consistently, without rising and falling between beats. |
-| Sudden gunfire, impacts, or explosions | Reduce sharp peaks smoothly, without keeping the following dialogue quiet. |
-| Dialogue overlapping loud music or effects | Preserve the speech while reducing the loud background. |
+| Situation                                                    | Intended behaviour                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Normal dialogue, deeper voices, or a moderately raised voice | Preserve the original level without dipping midway through a sentence.          |
+| Ordinary background music and everyday sounds                | Leave comfortable audio unchanged.                                              |
+| Sustained loud music, theme tunes, or engines                | Reduce the loud section consistently, without rising and falling between beats. |
+| Sudden gunfire, impacts, or explosions                       | Reduce sharp peaks smoothly, without keeping the following dialogue quiet.      |
+| Dialogue overlapping loud music or effects                   | Preserve the speech while reducing the loud background.                         |
 
 These are acceptance targets, not guarantees of the current prototype. The detailed listening criteria are in [the real-time audio target](docs/realtime-audio-target.md).
 
 ## What works today
 
-| Component | Available now | Current limit |
-| --- | --- | --- |
-| **Chrome extension** | Captures tab audio, reduces loud passages, and supports instant comparison with original audio. | Uses levels rather than sound recognition. Loud speech can still be reduced, including during overlapping effects. |
-| **Offline Python processor** | Processes WAV, MOV, and MP4 files with Cinema, Balanced, and Night modes. | Processes the whole mix; these modes are separate from the live extension's settings. |
-| **Optional audio classifier** | Uses YAMNet to estimate speech, music, action, and other content for offline gain decisions. | Classifies sounds; it does not extract separate dialogue and effects tracks. |
-| **Rolling Python prototype** | Processes successive audio blocks with configurable look-ahead. | Its default two-second buffer delays audio; it is not the Chrome playback engine. |
-| **Source separation trials** | Compare estimated dialogue/background separation, audio quality, and processing speed. | No model has yet passed all quality, browser performance, and playback requirements. |
+| Component                     | Available now                                                                                   | Current limit                                                                                                      |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Chrome extension**          | Captures tab audio, reduces loud passages, and supports instant comparison with original audio. | Uses levels rather than sound recognition. Loud speech can still be reduced, including during overlapping effects. |
+| **Offline Python processor**  | Processes WAV, MOV, and MP4 files with Cinema, Balanced, and Night modes.                       | Processes the whole mix; these modes are separate from the live extension's settings.                              |
+| **Optional audio classifier** | Uses YAMNet to estimate speech, music, action, and other content for offline gain decisions.    | Classifies sounds; it does not extract separate dialogue and effects tracks.                                       |
+| **Rolling Python prototype**  | Processes successive audio blocks with configurable look-ahead.                                 | Its default two-second buffer delays audio; it is not the Chrome playback engine.                                  |
+| **Source separation trials**  | Compare estimated dialogue/background separation, audio quality, and processing speed.          | No model has yet passed all quality, browser performance, and playback requirements.                               |
 
 Local listening has confirmed playback on Netflix with acceptable sync in the tested setup. This is not a guarantee of compatibility with every title, streaming service, or device. A smart TV version is a longer-term possibility; there is no TV app in this repository.
 
@@ -48,7 +48,7 @@ See the [extension guide](chrome-extension/README.md) for badge meanings, troubl
 
 ## Why source separation is the next step
 
-A volume detector sees the level of the entire soundtrack. It cannot reliably distinguish a loud voice from loud music. If dialogue and an explosion overlap, turning down the mixed signal turns down both. Adding a classifier can help decide *when* to act, but does not solve that overlap problem.
+A volume detector sees the level of the entire soundtrack. It cannot reliably distinguish a loud voice from loud music. If dialogue and an explosion overlap, turning down the mixed signal turns down both. Adding a classifier can help decide _when_ to act, but does not solve that overlap problem.
 
 The intended default is therefore to **estimate dialogue and music/effects separately**, then reduce only the loud non-dialogue content. The browser receives a mixed soundtrack, so these would be estimated sources, not access to the studio's original production tracks.
 
@@ -65,13 +65,13 @@ Separation quality matters as much as speed: speech leaking into the estimated b
 
 ### What the model trials have shown
 
-| Candidate | Finding from the recorded local trials |
-| --- | --- |
-| **BandIt v2** | Useful offline quality reference, but the tested processing time and chunking are unsuitable for live extension playback. |
-| **DeepFilterNet3** | Fast in an isolated browser test, but the tested remix reduced dialogue during overlapping music. |
-| **GTCRN** | Fast in a native streaming test, but also reduced dialogue during overlapping music. |
-| **DTLN** | Downloadable streaming ONNX models; fast natively and close to the original on isolated speech, but the tested remix still lost dialogue during music. |
-| **Rapidly SDK** | The native demo showed promising throughput. Unwatermarked quality, stereo preservation, and browser SDK integration still need evaluation. |
+| Candidate          | Finding from the recorded local trials                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **BandIt v2**      | Useful offline quality reference, but the tested processing time and chunking are unsuitable for live extension playback.                              |
+| **DeepFilterNet3** | Fast in an isolated browser test, but the tested remix reduced dialogue during overlapping music.                                                      |
+| **GTCRN**          | Fast in a native streaming test, but also reduced dialogue during overlapping music.                                                                   |
+| **DTLN**           | Downloadable streaming ONNX models; fast natively and close to the original on isolated speech, but the tested remix still lost dialogue during music. |
+| **Rapidly SDK**    | The native demo showed promising throughput. Unwatermarked quality, stereo preservation, and browser SDK integration still need evaluation.            |
 
 No licensed model has been selected, and the current extension does not depend on one. Native processing speed alone does not prove that a model is suitable for Chrome.
 
@@ -93,7 +93,7 @@ adaptive-audio input.mp4 --mode night --output output.mp4
 
 WAV input must be uncompressed 16-bit PCM. Video processing uses bundled FFmpeg to process the first audio track as stereo, copy the video, and encode the replacement audio as AAC. Always specify a MOV or MP4 output filename when processing video.
 
-The [offline workflow guide](docs/offline-workflow.md) covers modes, optional classification, rolling processing, measurement reports, and the earlier *Tears of Steel* listening trials. Source media, generated previews, and downloaded models are kept outside Git; they are not included in a fresh checkout.
+The [offline workflow guide](docs/offline-workflow.md) covers modes, optional classification, rolling processing, measurement reports, and the earlier _Tears of Steel_ listening trials. Source media, generated previews, and downloaded models are kept outside Git; they are not included in a fresh checkout.
 
 ### Prepare training windows
 
